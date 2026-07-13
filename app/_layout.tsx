@@ -1,56 +1,54 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import "../global.css";
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+
+import { startAuthListener, useAuthStore } from "@/lib/authStore";
 
 export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
-} from 'expo-router';
+} from "expo-router";
 
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Keep the splash screen visible until we know whether a session exists.
 SplashScreen.preventAutoHideAsync();
 
+const queryClient = new QueryClient();
+
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+  const { session, isReady } = useAuthStore();
 
   useEffect(() => {
-    if (loaded) {
+    startAuthListener();
+  }, []);
+
+  useEffect(() => {
+    if (isReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [isReady]);
 
-  if (!loaded) {
+  if (!isReady) {
     return null;
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+    <QueryClientProvider client={queryClient}>
+      <StatusBar style="auto" />
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* Route guard: signed-in users get the app tabs, everyone else the
+            auth flow. Expo Router redirects automatically when `session`
+            changes, so login/signup/logout never navigate manually. */}
+        <Stack.Protected guard={!!session}>
+          <Stack.Screen name="(tabs)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
       </Stack>
-    </ThemeProvider>
+    </QueryClientProvider>
   );
 }
