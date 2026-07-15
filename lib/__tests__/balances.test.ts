@@ -58,11 +58,11 @@ describe("computeBalances", () => {
     expect(balances[C]).toBe(-33333.33);
   });
 
-  it("ignores the payer credit for null paid_by but still splits the cost", () => {
+  it("skips expenses with no payer — they can't move money between members", () => {
     expect(computeBalances([expense(90, null)], [A, B, C])).toEqual({
-      [A]: -30,
-      [B]: -30,
-      [C]: -30,
+      [A]: 0,
+      [B]: 0,
+      [C]: 0,
     });
   });
 

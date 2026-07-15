@@ -27,14 +27,17 @@ export function computeBalances(
   if (memberIds.length === 0) return net;
 
   for (const expense of expenses) {
+    // An expense with no payer can't move money between members — skip it.
+    // (Can't happen through the v1 UI; defensive against bad data.)
+    if (expense.paid_by === null) continue;
+
     // Defensive: a payer no longer in the member list (shouldn't happen in
     // v1 — there's no "leave group") still gets credited rather than dropped.
-    if (expense.paid_by !== null && !(expense.paid_by in net)) {
+    if (!(expense.paid_by in net)) {
       net[expense.paid_by] = 0;
     }
-    if (expense.paid_by !== null) {
-      net[expense.paid_by] += expense.amount;
-    }
+    net[expense.paid_by] += expense.amount;
+
     const share = expense.amount / memberIds.length;
     for (const id of memberIds) {
       net[id] -= share;

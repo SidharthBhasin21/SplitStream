@@ -12,6 +12,10 @@ export default function GroupsLayout() {
         name="join"
         options={{ title: "Join group", presentation: "modal" }}
       />
+      <Stack.Screen
+        name="[groupId]/add-expense"
+        options={{ presentation: "modal" }}
+      />
       {/* [groupId] screens set their own titles once the group loads */}
     </Stack>
   );
