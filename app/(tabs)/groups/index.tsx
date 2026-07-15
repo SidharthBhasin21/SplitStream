@@ -1,3 +1,4 @@
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link } from "expo-router";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 
@@ -46,7 +47,8 @@ export default function GroupsScreen() {
           refreshing={isRefetching}
           ListEmptyComponent={
             <View className="items-center px-8 pt-24">
-              <Text className="mb-2 text-center text-xl font-semibold text-gray-900">
+              <FontAwesome name="users" size={40} color="#d1d5db" />
+              <Text className="mb-2 mt-4 text-center text-xl font-semibold text-gray-900">
                 No groups yet
               </Text>
               <Text className="text-center text-base text-gray-500">

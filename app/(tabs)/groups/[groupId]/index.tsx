@@ -1,3 +1,4 @@
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link, Stack, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import {
@@ -7,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useAuthStore } from "@/lib/authStore";
 import { computeBalances, formatINR } from "@/lib/balances";
@@ -60,24 +62,31 @@ function ExpenseRow({
   });
 
   const content = (
-    <View
-      className={`mb-2 flex-row items-center justify-between rounded-xl bg-white p-4 ${
-        expense._optimistic ? "opacity-60" : ""
-      }`}
-    >
-      <View className="flex-1 pr-3">
-        <Text className="text-base font-medium text-gray-900" numberOfLines={1}>
-          {expense.description}
-        </Text>
-        <Text className="mt-0.5 text-sm text-gray-500">
-          Paid by {payerName} · {date}
-          {expense._optimistic ? " · Syncing…" : ""}
+    // Rows fade in on mount — most noticeably when a realtime insert from
+    // another device lands in the list.
+    <Animated.View entering={FadeInDown.duration(250)}>
+      <View
+        className={`mb-2 flex-row items-center justify-between rounded-xl bg-white p-4 ${
+          expense._optimistic ? "opacity-60" : ""
+        }`}
+      >
+        <View className="flex-1 pr-3">
+          <Text
+            className="text-base font-medium text-gray-900"
+            numberOfLines={1}
+          >
+            {expense.description}
+          </Text>
+          <Text className="mt-0.5 text-sm text-gray-500">
+            Paid by {payerName} · {date}
+            {expense._optimistic ? " · Syncing…" : ""}
+          </Text>
+        </View>
+        <Text className="text-base font-semibold text-gray-900">
+          {formatINR(expense.amount)}
         </Text>
       </View>
-      <Text className="text-base font-semibold text-gray-900">
-        {formatINR(expense.amount)}
-      </Text>
-    </View>
+    </Animated.View>
   );
 
   // Only the creator can edit (PRD 5.3) — and optimistic rows have no real
@@ -100,7 +109,7 @@ export default function GroupDetailScreen() {
 
   const { data: group } = useGroup(groupId);
   const { data: members } = useGroupMembers(groupId);
-  const { data: expenses, isPending } = useExpenses(groupId);
+  const { data: expenses, isPending, error, refetch } = useExpenses(groupId);
   // Live-merge other members' changes into the list while this screen is open.
   useExpenseRealtime(groupId);
 
@@ -135,7 +144,16 @@ export default function GroupDetailScreen() {
         }}
       />
 
-      {isPending || !members ? (
+      {error ? (
+        <View className="flex-1 items-center justify-center px-8">
+          <Text className="mb-2 text-center text-base text-red-500">
+            Couldn't load this group's expenses.
+          </Text>
+          <Pressable onPress={() => refetch()}>
+            <Text className="font-semibold text-teal-600">Try again</Text>
+          </Pressable>
+        </View>
+      ) : isPending || !members ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
@@ -173,7 +191,8 @@ export default function GroupDetailScreen() {
           }
           ListEmptyComponent={
             <View className="items-center px-8 pt-16">
-              <Text className="mb-2 text-center text-xl font-semibold text-gray-900">
+              <FontAwesome name="money" size={40} color="#d1d5db" />
+              <Text className="mb-2 mt-4 text-center text-xl font-semibold text-gray-900">
                 No expenses yet
               </Text>
               <Text className="text-center text-base text-gray-500">

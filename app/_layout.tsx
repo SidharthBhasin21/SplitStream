@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { Toast } from "@/components/Toast";
 import { startAuthListener, useAuthStore } from "@/lib/authStore";
 
@@ -65,6 +66,7 @@ export default function RootLayout() {
         </Stack.Protected>
       </Stack>
       <Toast />
+      <OfflineBanner />
     </QueryClientProvider>
   );
 }

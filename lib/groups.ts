@@ -75,6 +75,10 @@ export function useGroupMembers(groupId: string) {
 export function useCreateGroup() {
   const queryClient = useQueryClient();
   return useMutation({
+    // Fail fast when offline instead of pausing: the create/join modals
+    // await their result, and (unlike expenses) there's no optimistic row
+    // to show while a paused mutation waits for reconnection.
+    networkMode: "always",
     mutationFn: async (name: string): Promise<Group> => {
       const { data, error } = await supabase.rpc("create_group", {
         group_name: name,
@@ -91,6 +95,8 @@ export function useCreateGroup() {
 export function useJoinGroup() {
   const queryClient = useQueryClient();
   return useMutation({
+    // Same fail-fast rationale as useCreateGroup.
+    networkMode: "always",
     mutationFn: async (code: string): Promise<Group> => {
       const { data, error } = await supabase.rpc("join_group", { code });
       if (error) throw error;

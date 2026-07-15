@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
 import { useAuthStore } from "@/lib/authStore";
 import { supabase } from "@/lib/supabase";
@@ -19,7 +19,12 @@ export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id;
 
-  const { data: profile, isPending } = useQuery({
+  const {
+    data: profile,
+    isPending,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["profile", userId],
     queryFn: () => fetchProfile(userId!),
     enabled: !!userId,
@@ -32,6 +37,17 @@ export default function ProfileScreen() {
     .join("")
     .toUpperCase();
 
+  const confirmSignOut = () => {
+    Alert.alert("Sign out?", "You can log back in any time.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign out",
+        style: "destructive",
+        onPress: () => supabase.auth.signOut(),
+      },
+    ]);
+  };
+
   return (
     <View className="flex-1 bg-gray-50 px-6 pt-10">
       <View className="items-center">
@@ -42,9 +58,17 @@ export default function ProfileScreen() {
             <Text className="text-2xl font-bold text-white">{initials}</Text>
           )}
         </View>
-        <Text className="text-xl font-semibold text-gray-900">
-          {profile?.name ?? " "}
-        </Text>
+        {error ? (
+          <Pressable onPress={() => refetch()}>
+            <Text className="text-base text-red-500">
+              Couldn't load your profile — tap to retry
+            </Text>
+          </Pressable>
+        ) : (
+          <Text className="text-xl font-semibold text-gray-900">
+            {profile?.name ?? " "}
+          </Text>
+        )}
         <Text className="mt-1 text-base text-gray-500">
           {session?.user.email}
         </Text>
@@ -52,7 +76,7 @@ export default function ProfileScreen() {
 
       <Pressable
         className="mt-10 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50"
-        onPress={() => supabase.auth.signOut()}
+        onPress={confirmSignOut}
       >
         <Text className="text-base font-semibold text-red-500">Sign out</Text>
       </Pressable>

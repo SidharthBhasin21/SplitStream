@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
@@ -61,11 +61,17 @@ export default function AddExpenseScreen() {
     },
   });
 
+  // Guards against a double-tap on Save firing the mutation twice in the
+  // instant before the modal dismisses (which would create two expenses).
+  const submitted = useRef(false);
+
   // Fire-and-forget on purpose: the optimistic row (with its "Syncing…"
   // badge) is the submit feedback, and awaiting here would hang the modal
   // when offline — paused mutations don't settle until reconnect. Failures
   // roll back and toast from the sync layer (lib/expenseSync.ts).
   const onSubmit = ({ description, amount }: ExpenseForm) => {
+    if (submitted.current) return;
+    submitted.current = true;
     const patch = {
       description: description.trim(),
       amount: Math.round(Number(amount) * 100) / 100,

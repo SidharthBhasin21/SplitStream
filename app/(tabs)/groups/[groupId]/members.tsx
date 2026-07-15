@@ -33,7 +33,7 @@ function MemberRow({ member }: { member: MemberWithProfile }) {
 export default function MembersScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { data: group } = useGroup(groupId);
-  const { data: members, isPending } = useGroupMembers(groupId);
+  const { data: members, isPending, error, refetch } = useGroupMembers(groupId);
 
   const shareInvite = () => {
     if (!group) return;
@@ -59,7 +59,16 @@ export default function MembersScreen() {
         </Pressable>
       </View>
 
-      {isPending ? (
+      {error ? (
+        <View className="mt-8 items-center">
+          <Text className="mb-2 text-center text-base text-red-500">
+            Couldn't load members.
+          </Text>
+          <Pressable onPress={() => refetch()}>
+            <Text className="font-semibold text-teal-600">Try again</Text>
+          </Pressable>
+        </View>
+      ) : isPending ? (
         <ActivityIndicator className="mt-8" />
       ) : (
         <FlatList
