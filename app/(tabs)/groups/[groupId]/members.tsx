@@ -7,8 +7,14 @@ import {
   Text,
   View,
 } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 
-import { useGroup, useGroupMembers, type MemberWithProfile } from "@/lib/groups";
+import {
+  useGroup,
+  useGroupMembers,
+  type MemberWithProfile,
+} from "@/lib/groups";
+import { inviteUrl } from "@/lib/invites";
 
 function MemberRow({ member }: { member: MemberWithProfile }) {
   const initials = member.profiles.name
@@ -51,6 +57,12 @@ export default function MembersScreen() {
         <Text className="mb-3 text-3xl font-bold tracking-widest text-teal-700">
           {group?.invite_code ?? "······"}
         </Text>
+        {group ? (
+          <View className="mb-3 rounded-xl bg-white p-3">
+            {/* Scannable from the join screen's "Scan QR" option */}
+            <QRCode value={inviteUrl(group.invite_code)} size={150} />
+          </View>
+        ) : null}
         <Pressable
           className="rounded-lg bg-teal-600 px-4 py-2 active:bg-teal-700"
           onPress={shareInvite}

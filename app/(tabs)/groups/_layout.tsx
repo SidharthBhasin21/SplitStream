@@ -13,6 +13,10 @@ export default function GroupsLayout() {
         options={{ title: "Join group", presentation: "modal" }}
       />
       <Stack.Screen
+        name="scan"
+        options={{ title: "Scan invite QR", presentation: "modal" }}
+      />
+      <Stack.Screen
         name="[groupId]/add-expense"
         options={{ presentation: "modal" }}
       />
