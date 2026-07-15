@@ -4,9 +4,11 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 import { useAuthStore } from "./authStore";
 import { supabase } from "./supabase";
+import { useToastStore } from "./toastStore";
 import type { Expense } from "./types";
 
 /**
@@ -108,16 +110,22 @@ export function upsertExpense(
   });
 }
 
-/** Replace the row with id `oldId` (e.g. a temp optimistic id) by `expense`. */
+/** Replace the row with id `oldId` (e.g. a temp optimistic id) by `expense`.
+ *  Also drops any existing row with the new id: our own INSERT can be echoed
+ *  back by the realtime channel *before* the mutation's onSuccess runs, and
+ *  a plain map() would then leave the expense in the list twice. */
 export function replaceExpense(
   queryClient: QueryClient,
   groupId: string,
   oldId: string,
   expense: CachedExpense,
 ) {
-  setList(queryClient, groupId, (list) =>
-    list.map((e) => (e.id === oldId ? expense : e)),
-  );
+  setList(queryClient, groupId, (list) => {
+    const rest = list.filter((e) => e.id !== oldId && e.id !== expense.id);
+    return [...rest, expense].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    );
+  });
 }
 
 /** Remove a row from the cached list. */
@@ -189,6 +197,9 @@ export function useAddExpense(groupId: string) {
       if (context?.previous) {
         queryClient.setQueryData(expenseKeys.list(groupId), context.previous);
       }
+      useToastStore
+        .getState()
+        .show("Couldn't add the expense — it has been removed. Try again.");
     },
   });
 }
@@ -243,16 +254,22 @@ export function useUpdateExpense(groupId: string) {
     },
 
     onError: (err, _input, context) => {
+      if (err instanceof ConflictError) {
+        // LOSING A CONFLICT (PRD 5.4): do NOT restore the snapshot — it's
+        // stale by definition (someone else's newer edit may already have
+        // been merged in by realtime). Refetch so the user sees the winning
+        // version, and tell them their edit didn't apply.
+        queryClient.invalidateQueries({ queryKey: expenseKeys.list(groupId) });
+        useToastStore.getState().show(err.message);
+        return;
+      }
+      // Ordinary failure (network, RLS): plain rollback.
       if (context?.previous) {
         queryClient.setQueryData(expenseKeys.list(groupId), context.previous);
       }
-      // After a conflict, our cached copy is stale by definition — refetch
-      // so the user is looking at the winning edit when they retry.
-      if (err instanceof ConflictError) {
-        queryClient.invalidateQueries({
-          queryKey: expenseKeys.list(groupId),
-        });
-      }
+      useToastStore
+        .getState()
+        .show("Couldn't save your edit — changes were rolled back.");
     },
   });
 }
@@ -282,6 +299,90 @@ export function useDeleteExpense(groupId: string) {
       if (context?.previous) {
         queryClient.setQueryData(expenseKeys.list(groupId), context.previous);
       }
+      useToastStore
+        .getState()
+        .show("Couldn't delete the expense — it has been restored.");
     },
   });
+}
+
+// ── Realtime merge (Phase 4) ─────────────────────────────────────────────
+// One channel per open group screen, filtered server-side to that group's
+// expenses. Every INSERT/UPDATE/DELETE any member commits lands here within
+// ~1s and is merged into the same cache the mutations above maintain — no
+// refetch, so remote changes feel as instant as local ones (PRD 6).
+
+/** Merge an incoming INSERT/UPDATE row using version-based last-write-wins. */
+function applyIncomingRow(
+  queryClient: QueryClient,
+  groupId: string,
+  incoming: Expense,
+) {
+  const list = queryClient.getQueryData<CachedExpense[]>(
+    expenseKeys.list(groupId),
+  );
+  const cached = list?.find((e) => e.id === incoming.id);
+
+  // Drop stale/duplicate events: anything at or below the version we already
+  // hold is old news — typically the echo of our own already-reconciled
+  // write coming back around through the WAL.
+  if (cached && !cached._optimistic && cached.version >= incoming.version) {
+    return;
+  }
+
+  // If `cached` is an optimistic row, someone else's write beat our in-flight
+  // one. Server truth wins immediately (this is the "last write wins" half of
+  // the strategy); our own mutation is now doomed to fail its version guard,
+  // and its ConflictError path shows the toast + refetch (the "notify the
+  // loser" half). Both paths converge on the server's state.
+  upsertExpense(queryClient, groupId, incoming);
+}
+
+/**
+ * Subscribe the group's expense list to Supabase Realtime for as long as the
+ * screen is mounted. RLS applies to the subscription too — members only ever
+ * receive their own groups' rows.
+ */
+export function useExpenseRealtime(groupId: string) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`group:${groupId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "expenses",
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload) => {
+          switch (payload.eventType) {
+            case "INSERT":
+            case "UPDATE":
+              applyIncomingRow(
+                queryClient,
+                groupId,
+                payload.new as Expense,
+              );
+              break;
+            case "DELETE":
+              // Needs `replica identity full` (phase4.sql) so the old row
+              // carries group_id and passes the filter above.
+              removeExpense(
+                queryClient,
+                groupId,
+                (payload.old as { id: string }).id,
+              );
+              break;
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [groupId, queryClient]);
 }

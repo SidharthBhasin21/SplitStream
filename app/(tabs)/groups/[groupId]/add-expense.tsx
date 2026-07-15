@@ -2,14 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 
 import { FormInput } from "@/components/FormInput";
@@ -59,7 +52,6 @@ export default function AddExpenseScreen() {
   const [paidBy, setPaidBy] = useState<string>(
     existing?.paid_by ?? userId ?? "",
   );
-  const [serverError, setServerError] = useState<string | null>(null);
 
   const { control, handleSubmit } = useForm<ExpenseForm>({
     resolver: zodResolver(expenseSchema),
@@ -69,23 +61,22 @@ export default function AddExpenseScreen() {
     },
   });
 
-  const onSubmit = async ({ description, amount }: ExpenseForm) => {
-    setServerError(null);
+  // Fire-and-forget on purpose: the optimistic row (with its "Syncing…"
+  // badge) is the submit feedback, and awaiting here would hang the modal
+  // when offline — paused mutations don't settle until reconnect. Failures
+  // roll back and toast from the sync layer (lib/expenseSync.ts).
+  const onSubmit = ({ description, amount }: ExpenseForm) => {
     const patch = {
       description: description.trim(),
       amount: Math.round(Number(amount) * 100) / 100,
       paid_by: paidBy,
     };
-    try {
-      if (existing) {
-        await updateExpense.mutateAsync({ expense: existing, patch });
-      } else {
-        await addExpense.mutateAsync(patch);
-      }
-      router.back();
-    } catch (e) {
-      setServerError(e instanceof Error ? e.message : "Something went wrong");
+    if (existing) {
+      updateExpense.mutate({ expense: existing, patch });
+    } else {
+      addExpense.mutate(patch);
     }
+    router.back();
   };
 
   const confirmDelete = () => {
@@ -101,8 +92,6 @@ export default function AddExpenseScreen() {
       },
     ]);
   };
-
-  const isSaving = addExpense.isPending || updateExpense.isPending;
 
   return (
     <ScrollView
@@ -152,24 +141,13 @@ export default function AddExpenseScreen() {
         Split equally between all {members?.length ?? "…"} members
       </Text>
 
-      {serverError ? (
-        <Text className="mb-3 text-center text-sm text-red-500">
-          {serverError}
-        </Text>
-      ) : null}
-
       <Pressable
-        className="items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700 disabled:opacity-60"
+        className="items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700"
         onPress={handleSubmit(onSubmit)}
-        disabled={isSaving}
       >
-        {isSaving ? (
-          <ActivityIndicator color="white" />
-        ) : (
-          <Text className="text-base font-semibold text-white">
-            {existing ? "Save changes" : "Add expense"}
-          </Text>
-        )}
+        <Text className="text-base font-semibold text-white">
+          {existing ? "Save changes" : "Add expense"}
+        </Text>
       </Pressable>
 
       {existing ? (

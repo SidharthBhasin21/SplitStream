@@ -11,7 +11,11 @@ import {
 import { useAuthStore } from "@/lib/authStore";
 import { computeBalances, formatINR } from "@/lib/balances";
 import { useGroup, useGroupMembers } from "@/lib/groups";
-import { useExpenses, type CachedExpense } from "@/lib/expenseSync";
+import {
+  useExpenseRealtime,
+  useExpenses,
+  type CachedExpense,
+} from "@/lib/expenseSync";
 
 function BalanceRow({
   name,
@@ -97,6 +101,8 @@ export default function GroupDetailScreen() {
   const { data: group } = useGroup(groupId);
   const { data: members } = useGroupMembers(groupId);
   const { data: expenses, isPending } = useExpenses(groupId);
+  // Live-merge other members' changes into the list while this screen is open.
+  useExpenseRealtime(groupId);
 
   const nameById = useMemo(() => {
     const map: Record<string, string> = {};
