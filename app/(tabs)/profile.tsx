@@ -3,7 +3,14 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
 import { useAuthStore } from "@/lib/authStore";
 import { supabase } from "@/lib/supabase";
+import { useThemeStore, type ThemePreference } from "@/lib/themeStore";
 import type { Profile } from "@/lib/types";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
 
 async function fetchProfile(userId: string): Promise<Profile> {
   const { data, error } = await supabase
@@ -18,6 +25,7 @@ async function fetchProfile(userId: string): Promise<Profile> {
 export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id;
+  const { preference, setPreference } = useThemeStore();
 
   const {
     data: profile,
@@ -49,7 +57,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-6 pt-10">
+    <View className="flex-1 bg-gray-50 px-6 pt-10 dark:bg-gray-950">
       <View className="items-center">
         <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-teal-600">
           {isPending ? (
@@ -65,17 +73,45 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
         ) : (
-          <Text className="text-xl font-semibold text-gray-900">
+          <Text className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {profile?.name ?? " "}
           </Text>
         )}
-        <Text className="mt-1 text-base text-gray-500">
+        <Text className="mt-1 text-base text-gray-500 dark:text-gray-400">
           {session?.user.email}
         </Text>
       </View>
 
+      <Text className="mb-1.5 mt-10 text-sm font-medium text-gray-700 dark:text-gray-300">
+        Appearance
+      </Text>
+      <View className="flex-row rounded-xl border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+        {THEME_OPTIONS.map(({ value, label }) => {
+          const selected = preference === value;
+          return (
+            <Pressable
+              key={value}
+              className={`flex-1 items-center rounded-lg py-2 ${
+                selected ? "bg-teal-600" : ""
+              }`}
+              onPress={() => setPreference(value)}
+            >
+              <Text
+                className={`text-sm ${
+                  selected
+                    ? "font-semibold text-white"
+                    : "text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Pressable
-        className="mt-10 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50"
+        className="mt-6 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50 dark:border-red-950 dark:bg-gray-900"
         onPress={confirmSignOut}
       >
         <Text className="text-base font-semibold text-red-500">Sign out</Text>

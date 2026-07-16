@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "./supabase";
-import type { Group, Profile } from "./types";
+import type { Expense, Group, Profile } from "./types";
 
 /**
  * Server-state layer for groups (Phase 2). All group reads rely on RLS to
@@ -24,6 +24,32 @@ export const groupKeys = {
   detail: (groupId: string) => ["group", groupId] as const,
   members: (groupId: string) => ["members", groupId] as const,
 };
+
+/**
+ * Minimal expense triples for EVERY group I belong to, grouped by group —
+ * feeds the live per-group balances on the groups list (design v2). No user
+ * filter: RLS scopes rows to my groups. Read-only and additive; the
+ * per-group screens keep using useExpenses/expenseSync untouched.
+ */
+export function useGroupExpenseSummaries() {
+  return useQuery({
+    queryKey: ["group-expense-summaries"],
+    queryFn: async (): Promise<
+      Record<string, Pick<Expense, "amount" | "paid_by">[]>
+    > => {
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("group_id, amount, paid_by");
+      if (error) throw error;
+      const byGroup: Record<string, Pick<Expense, "amount" | "paid_by">[]> =
+        {};
+      for (const row of data) {
+        (byGroup[row.group_id] ??= []).push(row);
+      }
+      return byGroup;
+    },
+  });
+}
 
 export function useGroups() {
   return useQuery({

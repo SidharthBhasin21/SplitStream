@@ -64,6 +64,28 @@ export function computeBalances(
   return net;
 }
 
+/**
+ * The current user's net position in one group, from that group's expenses
+ * and member count alone (the groups LIST doesn't load full member rows,
+ * only counts — see useGroupExpenseSummaries). Same equal-split semantics
+ * as computeBalances: payer is credited in full, everyone owes amount/n,
+ * null-payer rows are skipped.
+ */
+export function computeMyNet(
+  expenses: Pick<Expense, "amount" | "paid_by">[],
+  memberCount: number,
+  userId: string,
+): number {
+  if (memberCount <= 0) return 0;
+  let net = 0;
+  for (const expense of expenses) {
+    if (expense.paid_by === null) continue;
+    if (expense.paid_by === userId) net += expense.amount;
+    net -= expense.amount / memberCount;
+  }
+  return Math.round(net * 100) / 100;
+}
+
 /** "₹1,234.50" — always two decimals, Indian digit grouping. */
 export function formatINR(amount: number): string {
   return `₹${Math.abs(amount).toLocaleString("en-IN", {

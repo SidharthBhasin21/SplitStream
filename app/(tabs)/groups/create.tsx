@@ -36,7 +36,7 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-6 pt-8">
+    <View className="flex-1 bg-gray-50 px-6 pt-8 dark:bg-gray-950">
       <FormInput
         control={control}
         name="name"

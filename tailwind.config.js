@@ -6,7 +6,16 @@ module.exports = {
   // programmatically (Expo does this on web with userInterfaceStyle "automatic").
   darkMode: "class",
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        // Brand tokens (design-ref/): semantic money colors + hero surfaces.
+        ledger: "#2F5D50", // positive / "owed to you"
+        rust: "#B54A3A", // negative / "you owe"
+        navy: "#1F3A52", // hero card surface
+        ink: "#16293B", // darkest text / CTA buttons
+        paper: "#F6F8F8", // off-white app background
+      },
+    },
   },
   plugins: [],
 };

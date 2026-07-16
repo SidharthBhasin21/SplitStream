@@ -61,11 +61,11 @@ export default function SignupScreen() {
 
   if (confirmationSent) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50 px-8">
-        <Text className="mb-2 text-center text-2xl font-bold text-gray-900">
+      <View className="flex-1 items-center justify-center bg-gray-50 px-8 dark:bg-gray-950">
+        <Text className="mb-2 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
           Check your inbox
         </Text>
-        <Text className="mb-8 text-center text-base text-gray-500">
+        <Text className="mb-8 text-center text-base text-gray-500 dark:text-gray-400">
           We sent you a confirmation link. Tap it, then come back and log in.
         </Text>
         <Link href="/login" className="font-semibold text-teal-600">
@@ -77,7 +77,7 @@ export default function SignupScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-gray-50 dark:bg-gray-950"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
@@ -87,7 +87,7 @@ export default function SignupScreen() {
         <Text className="mb-1 text-center text-3xl font-bold text-teal-600">
           Create account
         </Text>
-        <Text className="mb-10 text-center text-base text-gray-500">
+        <Text className="mb-10 text-center text-base text-gray-500 dark:text-gray-400">
           Track shared expenses with your group
         </Text>
 
@@ -135,7 +135,7 @@ export default function SignupScreen() {
         </Pressable>
 
         <View className="mt-6 flex-row justify-center">
-          <Text className="text-gray-500">Already have an account? </Text>
+          <Text className="text-gray-500 dark:text-gray-400">Already have an account? </Text>
           <Link href="/login" className="font-semibold text-teal-600">
             Log in
           </Link>

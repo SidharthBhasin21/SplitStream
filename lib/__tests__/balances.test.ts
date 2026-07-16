@@ -1,4 +1,4 @@
-import { computeBalances, formatINR } from "../balances";
+import { computeBalances, computeMyNet, formatINR } from "../balances";
 
 const A = "user-a";
 const B = "user-b";
@@ -74,6 +74,27 @@ describe("computeBalances", () => {
   it("treats a member with no expenses as owing their share", () => {
     const balances = computeBalances([expense(50, A)], [A, B]);
     expect(balances[B]).toBe(-25);
+  });
+});
+
+describe("computeMyNet", () => {
+  it("credits me in full and debits my share when I pay", () => {
+    expect(computeMyNet([expense(100, A)], 2, A)).toBe(50);
+  });
+
+  it("debits only my share when someone else pays", () => {
+    expect(computeMyNet([expense(100, B)], 2, A)).toBe(-50);
+  });
+
+  it("nets multiple expenses and matches computeBalances", () => {
+    const expenses = [expense(300, A), expense(150, B)];
+    const viaFull = computeBalances(expenses, [A, B, C])[A];
+    expect(computeMyNet(expenses, 3, A)).toBe(viaFull);
+  });
+
+  it("skips null payers and handles zero members", () => {
+    expect(computeMyNet([expense(90, null)], 3, A)).toBe(0);
+    expect(computeMyNet([expense(90, A)], 0, A)).toBe(0);
   });
 });
 

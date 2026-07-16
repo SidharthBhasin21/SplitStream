@@ -15,7 +15,7 @@ SplitStream is a mobile app where a group of people (roommates, trip groups, fri
 ## 3. Non-Goals (explicitly out of scope for v1)
 
 - Payment settlement / actual money transfer (Venmo/UPI integration) — just tracking, not paying.
-- Push notifications (nice-to-have, not MVP).
+- ~~Push notifications (nice-to-have, not MVP).~~ *Moved into scope in v1.1 — see Section 15.*
 - Multi-currency support.
 - Receipt photo scanning/OCR.
 - Web app version.
@@ -218,3 +218,76 @@ When implementing, please:
 3. Keep the optimistic-update + conflict-resolution logic in a well-isolated, clearly-commented module (e.g., `lib/expenseSync.ts`) since this is the part I need to be able to explain in interviews — don't bury it inside component files.
 4. Write the balance-calculation function as a pure, exported function with unit tests.
 5. Ask me for my Supabase project URL/anon key rather than hardcoding placeholders silently.
+
+---
+
+## 15. v1.1 Additions (post-MVP, all five build phases shipped)
+
+Features added after v1 was confirmed working, in scope order:
+
+### 15.1 Invite QR codes
+
+- Members screen shows a QR encoding `splitstream://groups/join?code=XXXXXX`.
+- Join screen gains an in-app camera scanner (expo-camera); scanning feeds
+  the same `join_group` RPC as typing the code. Pure parse logic in
+  `lib/invites.ts` (unit tested).
+
+### 15.2 Activity log + push notifications
+
+- `activity_log` table: append-only per-group feed ("Bob added ₹500 for
+  dinner"), written **only by Postgres triggers** on expenses/group_members
+  (SECURITY DEFINER) — clients cannot forge or forget entries. RLS: members
+  read their groups' feeds; nobody writes directly.
+- Feed screen per group, live via a Realtime subscription (INSERT-only,
+  invalidate-on-event — append-only feeds don't need surgical cache merges).
+- Push notifications (supersedes the v1 non-goal): a `notify-activity`
+  Supabase Edge Function is invoked by a Database Webhook on each
+  activity_log INSERT and fans out via Expo's push API to every member's
+  registered device except the actor. Tokens live in `push_tokens`
+  (RLS: own rows only; the function uses the service role).
+- Requires an EAS development build (Expo Go cannot receive remote push
+  since SDK 53). In Expo Go, registration no-ops and everything else works.
+
+### 15.3 Expense categories
+
+- `expenses.category` text column (CHECK-constrained set: food, travel,
+  rent, shopping, utilities, entertainment, other; default 'other').
+- Category picker chips in add/edit expense; icon shown on expense rows.
+
+### 15.4 Dark mode
+
+- NativeWind `dark:` variants across all screens; class-based dark mode
+  driven by a persisted Zustand theme store (System / Light / Dark toggle
+  on the Profile screen); navigation chrome follows via React Navigation
+  themes.
+
+### 15.5 Stats charts
+
+- Per-group stats screen: spend-by-category bars + last-6-months trend.
+- Aggregations are pure functions in `lib/stats.ts` (unit tested, same
+  pattern as `lib/balances.ts`); charts are hand-rolled Views — no charting
+  dependency.
+
+### 15.6 Schema additions (beyond Section 7)
+
+```sql
+alter table expenses add column category text not null default 'other'
+  check (category in ('food','travel','rent','shopping','utilities','entertainment','other'));
+
+create table activity_log (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups(id) on delete cascade,
+  actor_id uuid references profiles(id),
+  action text not null check (action in
+    ('expense_added','expense_edited','expense_deleted','member_joined')),
+  details jsonb not null default '{}',
+  created_at timestamptz default now()
+);
+
+create table push_tokens (
+  user_id uuid not null references profiles(id) on delete cascade,
+  token text not null,
+  updated_at timestamptz default now(),
+  primary key (user_id, token)
+);
+```

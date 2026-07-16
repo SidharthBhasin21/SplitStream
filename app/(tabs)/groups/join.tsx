@@ -40,7 +40,7 @@ export default function JoinGroupScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-6 pt-8">
+    <View className="flex-1 bg-gray-50 px-6 pt-8 dark:bg-gray-950">
       <FormInput
         control={control}
         name="code"
@@ -70,7 +70,7 @@ export default function JoinGroupScreen() {
       </Pressable>
 
       <Link href="/groups/scan" replace asChild>
-        <Pressable className="mt-3 items-center rounded-xl border border-teal-600 bg-white py-3.5 active:bg-teal-50">
+        <Pressable className="mt-3 items-center rounded-xl border border-teal-600 bg-white py-3.5 active:bg-teal-50 dark:bg-gray-900 dark:active:bg-gray-800">
           <Text className="text-base font-semibold text-teal-600">
             Scan invite QR instead
           </Text>

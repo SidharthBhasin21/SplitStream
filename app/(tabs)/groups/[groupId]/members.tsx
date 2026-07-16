@@ -25,11 +25,11 @@ function MemberRow({ member }: { member: MemberWithProfile }) {
     .toUpperCase();
 
   return (
-    <View className="mb-2 flex-row items-center rounded-xl bg-white p-3">
+    <View className="mb-2 flex-row items-center rounded-xl bg-white p-3 dark:bg-gray-900">
       <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-teal-600">
         <Text className="text-sm font-bold text-white">{initials}</Text>
       </View>
-      <Text className="text-base font-medium text-gray-900">
+      <Text className="text-base font-medium text-gray-900 dark:text-gray-100">
         {member.profiles.name}
       </Text>
     </View>
@@ -49,12 +49,12 @@ export default function MembersScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-4 pt-4">
+    <View className="flex-1 bg-gray-50 px-4 pt-4 dark:bg-gray-950">
       <Stack.Screen options={{ title: "Members" }} />
 
-      <View className="mb-4 items-center rounded-2xl border border-dashed border-teal-400 bg-teal-50 p-4">
-        <Text className="mb-1 text-sm text-gray-600">Invite code</Text>
-        <Text className="mb-3 text-3xl font-bold tracking-widest text-teal-700">
+      <View className="mb-4 items-center rounded-2xl border border-dashed border-teal-400 bg-teal-50 p-4 dark:border-teal-700 dark:bg-teal-950">
+        <Text className="mb-1 text-sm text-gray-600 dark:text-gray-300">Invite code</Text>
+        <Text className="mb-3 text-3xl font-bold tracking-widest text-teal-700 dark:text-teal-300">
           {group?.invite_code ?? "······"}
         </Text>
         {group ? (

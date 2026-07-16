@@ -50,7 +50,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-gray-50 dark:bg-gray-950"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
@@ -60,7 +60,7 @@ export default function LoginScreen() {
         <Text className="mb-1 text-center text-3xl font-bold text-teal-600">
           SplitStream
         </Text>
-        <Text className="mb-10 text-center text-base text-gray-500">
+        <Text className="mb-10 text-center text-base text-gray-500 dark:text-gray-400">
           Split expenses, in real time
         </Text>
 
@@ -101,7 +101,7 @@ export default function LoginScreen() {
         </Pressable>
 
         <View className="mt-6 flex-row justify-center">
-          <Text className="text-gray-500">Don't have an account? </Text>
+          <Text className="text-gray-500 dark:text-gray-400">Don't have an account? </Text>
           <Link href="/signup" className="font-semibold text-teal-600">
             Sign up
           </Link>

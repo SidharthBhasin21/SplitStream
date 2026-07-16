@@ -34,9 +34,27 @@ export interface Expense {
   amount: number; // numeric(10,2) in Postgres
   paid_by: string | null;
   split_type: SplitType;
+  /** v1.1 — one of lib/categories.ts CATEGORIES; 'other' for legacy rows. */
+  category: string;
   /** Incremented on every update — the basis for conflict detection (PRD 5.4). */
   version: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** v1.1 — append-only feed rows, written only by DB triggers (phase6.sql). */
+export type ActivityAction =
+  | "expense_added"
+  | "expense_edited"
+  | "expense_deleted"
+  | "member_joined";
+
+export interface ActivityEntry {
+  id: string;
+  group_id: string;
+  actor_id: string | null;
+  action: ActivityAction;
+  details: { description?: string; amount?: number };
+  created_at: string;
 }

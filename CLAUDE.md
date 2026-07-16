@@ -47,5 +47,5 @@ Follow the schema in PRD Section 7 exactly (profiles, groups, group_members, exp
 
 ## Style/scope discipline
 
-- No push notifications, payment settlement, multi-currency, receipt OCR, or web version — these are explicitly out of scope per the PRD. If you think one is needed, ask first rather than adding it.
+- No payment settlement, multi-currency, receipt OCR, or web version — these are explicitly out of scope per the PRD. If you think one is needed, ask first rather than adding it. (Push notifications were originally out of scope but were pulled into v1.1 — see PRD Section 15.2; they require an EAS dev build, not Expo Go.)
 - Prefer fewer, well-explained files over maximal abstraction. This needs to be walkable in a live interview, not just functional.

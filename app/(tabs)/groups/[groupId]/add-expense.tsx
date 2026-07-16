@@ -5,8 +5,16 @@ import { useForm } from "react-hook-form";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+
 import { FormInput } from "@/components/FormInput";
 import { useAuthStore } from "@/lib/authStore";
+import {
+  asCategory,
+  CATEGORIES,
+  CATEGORY_META,
+  type Category,
+} from "@/lib/categories";
 import {
   useAddExpense,
   useDeleteExpense,
@@ -52,6 +60,9 @@ export default function AddExpenseScreen() {
   const [paidBy, setPaidBy] = useState<string>(
     existing?.paid_by ?? userId ?? "",
   );
+  const [category, setCategory] = useState<Category>(
+    existing ? asCategory(existing.category) : "other",
+  );
 
   const { control, handleSubmit } = useForm<ExpenseForm>({
     resolver: zodResolver(expenseSchema),
@@ -76,6 +87,7 @@ export default function AddExpenseScreen() {
       description: description.trim(),
       amount: Math.round(Number(amount) * 100) / 100,
       paid_by: paidBy,
+      category,
     };
     if (existing) {
       updateExpense.mutate({ expense: existing, patch });
@@ -101,7 +113,7 @@ export default function AddExpenseScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-gray-50 px-6 pt-6"
+      className="flex-1 bg-gray-50 px-6 pt-6 dark:bg-gray-950"
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen
@@ -123,17 +135,54 @@ export default function AddExpenseScreen() {
         keyboardType="decimal-pad"
       />
 
-      <Text className="mb-1.5 text-sm font-medium text-gray-700">Paid by</Text>
-      <View className="mb-4 rounded-xl border border-gray-300 bg-white">
+      <Text className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+        Category
+      </Text>
+      <View className="mb-4 flex-row flex-wrap gap-2">
+        {CATEGORIES.map((c) => {
+          const selected = category === c;
+          return (
+            <Pressable
+              key={c}
+              className={`flex-row items-center rounded-full border px-3 py-2 ${
+                selected
+                  ? "border-teal-600 bg-teal-600"
+                  : "border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+              }`}
+              onPress={() => setCategory(c)}
+            >
+              <FontAwesome
+                name={CATEGORY_META[c].icon as never}
+                size={12}
+                color={selected ? "#ffffff" : "#0d9488"}
+              />
+              <Text
+                className={`ml-1.5 text-sm ${
+                  selected
+                    ? "font-semibold text-white"
+                    : "text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {CATEGORY_META[c].label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+        Paid by
+      </Text>
+      <View className="mb-4 rounded-xl border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
         {(members ?? []).map((m, i) => (
           <Pressable
             key={m.user_id}
-            className={`flex-row items-center justify-between px-4 py-3 active:bg-gray-50 ${
-              i > 0 ? "border-t border-gray-100" : ""
+            className={`flex-row items-center justify-between px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800 ${
+              i > 0 ? "border-t border-gray-100 dark:border-gray-800" : ""
             }`}
             onPress={() => setPaidBy(m.user_id)}
           >
-            <Text className="text-base text-gray-900">
+            <Text className="text-base text-gray-900 dark:text-gray-100">
               {m.user_id === userId ? "You" : m.profiles.name}
             </Text>
             {paidBy === m.user_id ? (
@@ -143,7 +192,7 @@ export default function AddExpenseScreen() {
         ))}
       </View>
 
-      <Text className="mb-4 text-sm text-gray-400">
+      <Text className="mb-4 text-sm text-gray-400 dark:text-gray-500">
         Split equally between all {members?.length ?? "…"} members
       </Text>
 
@@ -158,7 +207,7 @@ export default function AddExpenseScreen() {
 
       {existing ? (
         <Pressable
-          className="mt-3 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50"
+          className="mt-3 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50 dark:border-red-950 dark:bg-gray-900"
           onPress={confirmDelete}
         >
           <Text className="text-base font-semibold text-red-500">

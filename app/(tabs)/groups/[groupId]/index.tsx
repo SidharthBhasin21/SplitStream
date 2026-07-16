@@ -1,25 +1,42 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Link, Stack, useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
+import { Link, Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  Share,
   Text,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
+import { BalanceHero } from "@/components/ui/BalanceHero";
+import { CircleAvatar } from "@/components/ui/CircleAvatar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { AmountCell, ListRow } from "@/components/ui/ListRow";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
 import { computeBalances, formatINR } from "@/lib/balances";
-import { useGroup, useGroupMembers } from "@/lib/groups";
+import { asCategory, CATEGORY_META } from "@/lib/categories";
 import {
   useExpenseRealtime,
   useExpenses,
   type CachedExpense,
 } from "@/lib/expenseSync";
+import { useGroup, useGroupMembers } from "@/lib/groups";
+import { useToastStore } from "@/lib/toastStore";
 
-function BalanceRow({
+type Filter = "all" | "iowe" | "owedtome";
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "iowe", label: "You owe" },
+  { value: "owedtome", label: "Owed to you" },
+];
+
+function MemberBalanceRow({
   name,
   amount,
   isSelf,
@@ -28,13 +45,12 @@ function BalanceRow({
   amount: number;
   isSelf: boolean;
 }) {
-  const label =
-    amount > 0 ? "gets back" : amount < 0 ? "owes" : "settled up";
+  const label = amount > 0 ? "gets back" : amount < 0 ? "owes" : "settled up";
   const color =
-    amount > 0 ? "text-green-600" : amount < 0 ? "text-red-500" : "text-gray-400";
+    amount > 0 ? "text-ledger" : amount < 0 ? "text-rust" : "text-gray-400";
   return (
     <View className="flex-row items-center justify-between py-1.5">
-      <Text className="text-base text-gray-900">
+      <Text className="text-base text-ink dark:text-gray-100">
         {isSelf ? "You" : name}
       </Text>
       <Text className={`text-base font-semibold ${color}`}>
@@ -45,73 +61,18 @@ function BalanceRow({
   );
 }
 
-function ExpenseRow({
-  expense,
-  payerName,
-  isMine,
-  groupId,
-}: {
-  expense: CachedExpense;
-  payerName: string;
-  isMine: boolean;
-  groupId: string;
-}) {
-  const date = new Date(expense.created_at).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-  });
-
-  const content = (
-    // Rows fade in on mount — most noticeably when a realtime insert from
-    // another device lands in the list.
-    <Animated.View entering={FadeInDown.duration(250)}>
-      <View
-        className={`mb-2 flex-row items-center justify-between rounded-xl bg-white p-4 ${
-          expense._optimistic ? "opacity-60" : ""
-        }`}
-      >
-        <View className="flex-1 pr-3">
-          <Text
-            className="text-base font-medium text-gray-900"
-            numberOfLines={1}
-          >
-            {expense.description}
-          </Text>
-          <Text className="mt-0.5 text-sm text-gray-500">
-            Paid by {payerName} · {date}
-            {expense._optimistic ? " · Syncing…" : ""}
-          </Text>
-        </View>
-        <Text className="text-base font-semibold text-gray-900">
-          {formatINR(expense.amount)}
-        </Text>
-      </View>
-    </Animated.View>
-  );
-
-  // Only the creator can edit (PRD 5.3) — and optimistic rows have no real
-  // id to edit yet.
-  if (!isMine || expense._optimistic) return content;
-
-  return (
-    <Link
-      href={`/groups/${groupId}/add-expense?expenseId=${expense.id}`}
-      asChild
-    >
-      <Pressable className="active:opacity-70">{content}</Pressable>
-    </Link>
-  );
-}
-
 export default function GroupDetailScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user.id);
 
   const { data: group } = useGroup(groupId);
   const { data: members } = useGroupMembers(groupId);
-  const { data: expenses, isPending, error, refetch } = useExpenses(groupId);
+  const { data: expenses, isPending } = useExpenses(groupId);
   // Live-merge other members' changes into the list while this screen is open.
   useExpenseRealtime(groupId);
+
+  const [filter, setFilter] = useState<Filter>("all");
 
   const nameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -126,93 +87,191 @@ export default function GroupDetailScreen() {
       computeBalances(expenses ?? [], (members ?? []).map((m) => m.user_id)),
     [expenses, members],
   );
+  const myNet = userId ? (balances[userId] ?? 0) : 0;
+  const memberCount = members?.length ?? 0;
+
+  const visibleExpenses = useMemo(() => {
+    const list = expenses ?? [];
+    if (filter === "iowe") {
+      return list.filter((e) => e.paid_by !== null && e.paid_by !== userId);
+    }
+    if (filter === "owedtome") {
+      return list.filter((e) => e.paid_by === userId);
+    }
+    return list;
+  }, [expenses, filter, userId]);
+
+  const shareInvite = () => {
+    if (!group) return;
+    Share.share({
+      message: `Join "${group.name}" on SplitStream with invite code: ${group.invite_code}`,
+    });
+  };
+
+  const renderExpense = ({ item }: { item: CachedExpense }) => {
+    const meta = CATEGORY_META[asCategory(item.category)];
+    const date = new Date(item.created_at).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+    });
+    const payer =
+      item.paid_by === userId
+        ? "You"
+        : (nameById[item.paid_by ?? ""] ?? "Someone");
+    // My net impact of this row: payer is credited in full, everyone owes a
+    // share — same equal-split semantics as lib/balances.ts.
+    const share = memberCount > 0 ? item.amount / memberCount : 0;
+    const impact =
+      item.paid_by === null
+        ? 0
+        : Math.round(
+            (item.paid_by === userId ? item.amount - share : -share) * 100,
+          ) / 100;
+    const isMine = item.created_by === userId && !item._optimistic;
+
+    return (
+      <Animated.View entering={FadeInDown.duration(250)}>
+        <ListRow
+          avatar={
+            <CircleAvatar icon={meta.icon} bg={meta.tint.bg} fg={meta.tint.fg} />
+          }
+          title={item.description}
+          subtitle={`${payer} paid ${formatINR(item.amount)}${
+            item._optimistic ? " · Syncing…" : ""
+          }`}
+          right={<AmountCell amount={impact} topLine={date} />}
+          dimmed={item._optimistic}
+          onPress={
+            isMine
+              ? () =>
+                  router.push(
+                    `/groups/${groupId}/add-expense?expenseId=${item.id}`,
+                  )
+              : undefined
+          }
+        />
+      </Animated.View>
+    );
+  };
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <Stack.Screen
-        options={{
-          title: group?.name ?? "",
-          headerRight: () => (
+    <View className="flex-1 bg-paper dark:bg-gray-950">
+      <Stack.Screen options={{ headerShown: false }} />
+      {/* Hero card is navy in both themes — force light status bar icons. */}
+      <StatusBar style="light" />
+
+      <BalanceHero
+        label="Your balance in this group"
+        amount={myNet}
+        subtitle={
+          myNet > 0 ? "you're owed" : myNet < 0 ? "you owe" : "all settled up"
+        }
+        topBar={
+          <View className="flex-row items-center justify-between">
+            <Pressable hitSlop={12} onPress={() => router.back()}>
+              <FontAwesome name="chevron-left" size={18} color="white" />
+            </Pressable>
+            <Text
+              className="flex-1 px-3 text-center text-lg font-bold text-white"
+              numberOfLines={1}
+            >
+              {group?.name ?? ""}
+            </Text>
             <Link href={`/groups/${groupId}/members`} asChild>
-              <Pressable hitSlop={8}>
-                <Text className="text-base font-semibold text-teal-600">
-                  Members
-                </Text>
+              <Pressable hitSlop={12}>
+                <FontAwesome name="users" size={18} color="white" />
               </Pressable>
             </Link>
-          ),
-        }}
+          </View>
+        }
+        actions={[
+          {
+            icon: "plus",
+            label: "Add expense",
+            onPress: () => router.push(`/groups/${groupId}/add-expense`),
+          },
+          {
+            icon: "handshake-o",
+            label: "Settle up",
+            onPress: () =>
+              useToastStore
+                .getState()
+                .show("Settling up is on the roadmap — v2."),
+          },
+          { icon: "share-alt", label: "Share", onPress: shareInvite },
+        ]}
       />
 
-      {error ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="mb-2 text-center text-base text-red-500">
-            Couldn't load this group's expenses.
-          </Text>
-          <Pressable onPress={() => refetch()}>
-            <Text className="font-semibold text-teal-600">Try again</Text>
-          </Pressable>
-        </View>
-      ) : isPending || !members ? (
+      {isPending || !members ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
       ) : (
         <FlatList
-          className="px-4 pt-4"
-          data={expenses}
+          className="mt-4 px-5"
+          data={visibleExpenses}
           keyExtractor={(e) => e.id}
-          renderItem={({ item }) => (
-            <ExpenseRow
-              expense={item}
-              payerName={
-                item.paid_by === userId
-                  ? "you"
-                  : (nameById[item.paid_by ?? ""] ?? "someone")
-              }
-              isMine={item.created_by === userId}
-              groupId={groupId}
-            />
-          )}
+          renderItem={renderExpense}
           ListHeaderComponent={
-            <View className="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-3">
-              <Text className="mb-1 text-sm font-medium uppercase tracking-wide text-gray-400">
-                Balances
-              </Text>
-              {(members ?? []).map((m) => (
-                <BalanceRow
-                  key={m.user_id}
-                  name={m.profiles.name}
-                  amount={balances[m.user_id] ?? 0}
-                  isSelf={m.user_id === userId}
+            <View>
+              {members.length > 0 && (expenses?.length ?? 0) > 0 ? (
+                <View className="mb-4 rounded-2xl bg-white px-4 py-3 dark:bg-gray-900">
+                  {members.map((m) => (
+                    <MemberBalanceRow
+                      key={m.user_id}
+                      name={m.profiles.name}
+                      amount={balances[m.user_id] ?? 0}
+                      isSelf={m.user_id === userId}
+                    />
+                  ))}
+                </View>
+              ) : null}
+
+              <View className="mb-3 flex-row items-center justify-between">
+                <Text className="text-lg font-bold text-ink dark:text-gray-100">
+                  Transactions
+                </Text>
+                <View className="flex-row gap-5">
+                  <Link href={`/groups/${groupId}/activity`} asChild>
+                    <Pressable hitSlop={8}>
+                      <FontAwesome name="history" size={17} color="#9ca3af" />
+                    </Pressable>
+                  </Link>
+                  <Link href={`/groups/${groupId}/stats`} asChild>
+                    <Pressable hitSlop={8}>
+                      <FontAwesome name="bar-chart" size={16} color="#9ca3af" />
+                    </Pressable>
+                  </Link>
+                </View>
+              </View>
+
+              <View className="mb-2">
+                <SegmentedControl
+                  options={FILTERS}
+                  value={filter}
+                  onChange={setFilter}
                 />
-              ))}
+              </View>
             </View>
           }
           ListEmptyComponent={
-            <View className="items-center px-8 pt-16">
-              <FontAwesome name="money" size={40} color="#d1d5db" />
-              <Text className="mb-2 mt-4 text-center text-xl font-semibold text-gray-900">
-                No expenses yet
+            filter === "all" ? (
+              <EmptyState
+                icon="money"
+                title="No expenses yet"
+                message="Add the first expense and SplitStream will keep the balances straight."
+                ctaLabel="Add expense"
+                onCta={() => router.push(`/groups/${groupId}/add-expense`)}
+              />
+            ) : (
+              <Text className="pt-10 text-center text-sm text-gray-400">
+                Nothing here for this filter.
               </Text>
-              <Text className="text-center text-base text-gray-500">
-                Add the first expense and SplitStream will keep the balances
-                straight.
-              </Text>
-            </View>
+            )
           }
+          contentContainerClassName="pb-8"
         />
       )}
-
-      <View className="px-4 pb-6 pt-2">
-        <Link href={`/groups/${groupId}/add-expense`} asChild>
-          <Pressable className="items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700">
-            <Text className="text-base font-semibold text-white">
-              Add expense
-            </Text>
-          </Pressable>
-        </Link>
-      </View>
     </View>
   );
 }

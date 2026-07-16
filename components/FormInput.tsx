@@ -28,12 +28,14 @@ export function FormInput<T extends FieldValues>({
       name={name}
       render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
         <View className="mb-4">
-          <Text className="mb-1.5 text-sm font-medium text-gray-700">
+          <Text className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
             {label}
           </Text>
           <TextInput
-            className={`rounded-xl border bg-white px-4 py-3 text-base text-gray-900 ${
-              error ? "border-red-400" : "border-gray-300"
+            className={`rounded-xl border bg-white px-4 py-3 text-base text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${
+              error
+                ? "border-red-400"
+                : "border-gray-300 dark:border-gray-700"
             }`}
             placeholderTextColor="#9ca3af"
             onChangeText={onChange}

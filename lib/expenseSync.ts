@@ -145,6 +145,7 @@ export interface AddExpenseInput {
   description: string;
   amount: number;
   paid_by: string;
+  category: string;
 }
 
 export function useAddExpense(groupId: string) {
@@ -177,6 +178,7 @@ export function useAddExpense(groupId: string) {
         description: input.description,
         amount: input.amount,
         paid_by: input.paid_by,
+        category: input.category,
         split_type: "equal",
         version: 1,
         created_by: userId ?? null,
@@ -207,7 +209,7 @@ export function useAddExpense(groupId: string) {
 export interface UpdateExpenseInput {
   /** The cached row being edited — carries the id and the version we saw. */
   expense: CachedExpense;
-  patch: Pick<Expense, "description" | "amount" | "paid_by">;
+  patch: Pick<Expense, "description" | "amount" | "paid_by" | "category">;
 }
 
 export function useUpdateExpense(groupId: string) {
