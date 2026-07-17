@@ -77,6 +77,52 @@ describe("computeBalances", () => {
   });
 });
 
+function settlement(amount: number, from_user: string, to_user: string) {
+  return { amount, from_user, to_user };
+}
+
+describe("computeBalances with settlements", () => {
+  it("a full settlement zeroes both parties out", () => {
+    // A paid 100 for A+B → B owes A 50. B pays A 50 → settled.
+    const balances = computeBalances(
+      [expense(100, A)],
+      [A, B],
+      [settlement(50, B, A)],
+    );
+    expect(balances).toEqual({ [A]: 0, [B]: 0 });
+  });
+
+  it("a PARTIAL settlement shifts exactly the paid amount", () => {
+    // B owes A 50, pays back only 20 → still owes 30.
+    const balances = computeBalances(
+      [expense(100, A)],
+      [A, B],
+      [settlement(20, B, A)],
+    );
+    expect(balances).toEqual({ [A]: 30, [B]: -30 });
+  });
+
+  it("settlements preserve exact zero-sum", () => {
+    const balances = computeBalances(
+      [expense(100, A), expense(33.33, B)],
+      [A, B, C],
+      [settlement(11.11, C, A), settlement(5, B, C)],
+    );
+    const totalPaise = Object.values(balances).reduce(
+      (s, v) => s + Math.round(v * 100),
+      0,
+    );
+    expect(totalPaise).toBe(0);
+  });
+
+  it("works with settlements and no expenses (recording an old debt)", () => {
+    expect(computeBalances([], [A, B], [settlement(75, A, B)])).toEqual({
+      [A]: 75,
+      [B]: -75,
+    });
+  });
+});
+
 describe("computeMyNet", () => {
   it("credits me in full and debits my share when I pay", () => {
     expect(computeMyNet([expense(100, A)], 2, A)).toBe(50);
@@ -95,6 +141,15 @@ describe("computeMyNet", () => {
   it("skips null payers and handles zero members", () => {
     expect(computeMyNet([expense(90, null)], 3, A)).toBe(0);
     expect(computeMyNet([expense(90, A)], 0, A)).toBe(0);
+  });
+
+  it("applies settlements involving me and ignores others'", () => {
+    // I paid 100 (net +50), then B settles 20 back to me (net +30)…
+    expect(
+      computeMyNet([expense(100, A)], 2, A, [settlement(20, B, A)]),
+    ).toBe(30);
+    // …while a settlement purely between B and C doesn't touch my net.
+    expect(computeMyNet([], 3, A, [settlement(40, B, C)])).toBe(0);
   });
 });
 

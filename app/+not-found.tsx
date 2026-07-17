@@ -1,15 +1,22 @@
 import { Link, Stack } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ title: "Oops!" }} />
-      <View className="flex-1 items-center justify-center bg-gray-50 p-5 dark:bg-gray-950">
-        <Text className="text-xl font-bold text-gray-900 dark:text-gray-100">
-          This screen doesn't exist.
-        </Text>
-        <Link href="/groups" className="mt-4 py-4 font-semibold text-teal-600">
+      <View className="flex-1 justify-center bg-paper p-5 dark:bg-gray-950">
+        <EmptyState
+          icon="compass"
+          title="This screen doesn't exist"
+          message="The link you followed points nowhere."
+        />
+        <Link
+          href="/groups"
+          className="mt-6 text-center font-semibold text-ledger"
+        >
           Go home
         </Link>
       </View>

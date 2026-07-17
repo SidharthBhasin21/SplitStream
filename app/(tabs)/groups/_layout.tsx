@@ -2,8 +2,9 @@ import { Stack } from "expo-router";
 
 export default function GroupsLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ title: "Groups" }} />
+    <Stack screenOptions={{ headerShadowVisible: false }}>
+      {/* The summary block owns the top of the list screen (design-ref 01). */}
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="create"
         options={{ title: "New group", presentation: "modal" }}
@@ -18,6 +19,10 @@ export default function GroupsLayout() {
       />
       <Stack.Screen
         name="[groupId]/add-expense"
+        options={{ presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="[groupId]/settle"
         options={{ presentation: "modal" }}
       />
       {/* [groupId] screens set their own titles once the group loads */}

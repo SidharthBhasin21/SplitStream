@@ -1,13 +1,9 @@
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, useLocalSearchParams } from "expo-router";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 
+import { CircleAvatar } from "@/components/ui/CircleAvatar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ListRow } from "@/components/ui/ListRow";
 import {
   describeActivity,
   useActivity,
@@ -15,14 +11,21 @@ import {
   type ActivityWithActor,
 } from "@/lib/activity";
 
-const ACTION_ICONS: Record<ActivityWithActor["action"], string> = {
-  expense_added: "plus",
-  expense_edited: "pencil",
-  expense_deleted: "trash",
-  member_joined: "user-plus",
+/** Icon + pastel tint per action, matching the category avatar language. */
+const ACTION_STYLE: Record<
+  ActivityWithActor["action"],
+  { icon: string; bg: string; fg: string }
+> = {
+  expense_added: { icon: "plus", bg: "#D9EFE7", fg: "#2F5D50" },
+  expense_edited: { icon: "pencil", bg: "#D8E9FC", fg: "#3B82C4" },
+  expense_deleted: { icon: "trash", bg: "#F5DDD8", fg: "#B54A3A" },
+  member_joined: { icon: "user-plus", bg: "#E9E0F8", fg: "#7C5CBF" },
+  settled_up: { icon: "handshake-o", bg: "#D9EFE7", fg: "#2F5D50" },
+  settlement_deleted: { icon: "handshake-o", bg: "#F5DDD8", fg: "#B54A3A" },
 };
 
 function ActivityRow({ entry }: { entry: ActivityWithActor }) {
+  const style = ACTION_STYLE[entry.action];
   const when = new Date(entry.created_at).toLocaleString("en-IN", {
     day: "numeric",
     month: "short",
@@ -31,23 +34,11 @@ function ActivityRow({ entry }: { entry: ActivityWithActor }) {
   });
 
   return (
-    <View className="mb-2 flex-row items-center rounded-xl bg-white p-3 dark:bg-gray-900">
-      <View className="mr-3 h-9 w-9 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950">
-        <FontAwesome
-          name={ACTION_ICONS[entry.action] as never}
-          size={14}
-          color="#0d9488"
-        />
-      </View>
-      <View className="flex-1">
-        <Text className="text-base text-gray-900 dark:text-gray-100">
-          {describeActivity(entry)}
-        </Text>
-        <Text className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-          {when}
-        </Text>
-      </View>
-    </View>
+    <ListRow
+      avatar={<CircleAvatar icon={style.icon} bg={style.bg} fg={style.fg} />}
+      title={describeActivity(entry)}
+      subtitle={when}
+    />
   );
 }
 
@@ -58,16 +49,16 @@ export default function ActivityScreen() {
   useActivityRealtime(groupId);
 
   return (
-    <View className="flex-1 bg-gray-50 px-4 pt-4 dark:bg-gray-950">
+    <View className="flex-1 bg-paper px-5 pt-2 dark:bg-gray-950">
       <Stack.Screen options={{ title: "Activity" }} />
 
       {error ? (
         <View className="mt-8 items-center">
-          <Text className="mb-2 text-center text-base text-red-500">
+          <Text className="mb-2 text-center text-base text-rust">
             Couldn't load activity.
           </Text>
           <Pressable onPress={() => refetch()}>
-            <Text className="font-semibold text-teal-600">Try again</Text>
+            <Text className="font-semibold text-ledger">Try again</Text>
           </Pressable>
         </View>
       ) : isPending ? (
@@ -78,16 +69,11 @@ export default function ActivityScreen() {
           keyExtractor={(e) => e.id}
           renderItem={({ item }) => <ActivityRow entry={item} />}
           ListEmptyComponent={
-            <View className="items-center px-8 pt-16">
-              <FontAwesome name="history" size={40} color="#d1d5db" />
-              <Text className="mb-2 mt-4 text-center text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Nothing yet
-              </Text>
-              <Text className="text-center text-base text-gray-500 dark:text-gray-400">
-                Group activity — expenses added, edited, members joining —
-                shows up here.
-              </Text>
-            </View>
+            <EmptyState
+              icon="history"
+              title="Nothing yet"
+              message="Group activity — expenses added, edited, members joining — shows up here."
+            />
           }
         />
       )}

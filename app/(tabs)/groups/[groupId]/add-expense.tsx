@@ -113,7 +113,7 @@ export default function AddExpenseScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-gray-50 px-6 pt-6 dark:bg-gray-950"
+      className="flex-1 bg-paper px-6 pt-6 dark:bg-gray-950"
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen
@@ -135,7 +135,7 @@ export default function AddExpenseScreen() {
         keyboardType="decimal-pad"
       />
 
-      <Text className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <Text className="mb-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
         Category
       </Text>
       <View className="mb-4 flex-row flex-wrap gap-2">
@@ -143,18 +143,20 @@ export default function AddExpenseScreen() {
           const selected = category === c;
           return (
             <Pressable
-              key={c}
+              // Remount on selection flip — see SegmentedControl for why
+              // (NativeWind can't upgrade mounted components' style features).
+              key={`${c}-${selected}`}
               className={`flex-row items-center rounded-full border px-3 py-2 ${
                 selected
-                  ? "border-teal-600 bg-teal-600"
-                  : "border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+                  ? "border-ledger bg-ledger"
+                  : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
               }`}
               onPress={() => setCategory(c)}
             >
               <FontAwesome
                 name={CATEGORY_META[c].icon as never}
                 size={12}
-                color={selected ? "#ffffff" : "#0d9488"}
+                color={selected ? "#ffffff" : "#2F5D50"}
               />
               <Text
                 className={`ml-1.5 text-sm ${
@@ -170,10 +172,10 @@ export default function AddExpenseScreen() {
         })}
       </View>
 
-      <Text className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <Text className="mb-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
         Paid by
       </Text>
-      <View className="mb-4 rounded-xl border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <View className="mb-4 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {(members ?? []).map((m, i) => (
           <Pressable
             key={m.user_id}
@@ -182,11 +184,11 @@ export default function AddExpenseScreen() {
             }`}
             onPress={() => setPaidBy(m.user_id)}
           >
-            <Text className="text-base text-gray-900 dark:text-gray-100">
+            <Text className="text-base text-ink dark:text-gray-100">
               {m.user_id === userId ? "You" : m.profiles.name}
             </Text>
             {paidBy === m.user_id ? (
-              <Text className="text-base font-bold text-teal-600">✓</Text>
+              <Text className="text-base font-bold text-ledger">✓</Text>
             ) : null}
           </Pressable>
         ))}
@@ -197,20 +199,20 @@ export default function AddExpenseScreen() {
       </Text>
 
       <Pressable
-        className="items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700"
+        className="items-center rounded-full bg-ink py-4 active:opacity-80 dark:bg-white"
         onPress={handleSubmit(onSubmit)}
       >
-        <Text className="text-base font-semibold text-white">
+        <Text className="text-base font-semibold text-white dark:text-ink">
           {existing ? "Save changes" : "Add expense"}
         </Text>
       </Pressable>
 
       {existing ? (
         <Pressable
-          className="mt-3 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50 dark:border-red-950 dark:bg-gray-900"
+          className="mt-3 items-center rounded-full border border-rust/30 py-4 active:bg-rust/10 dark:border-rust/50"
           onPress={confirmDelete}
         >
-          <Text className="text-base font-semibold text-red-500">
+          <Text className="text-base font-semibold text-rust">
             Delete expense
           </Text>
         </Pressable>

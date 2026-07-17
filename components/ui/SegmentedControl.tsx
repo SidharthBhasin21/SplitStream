@@ -19,7 +19,11 @@ export function SegmentedControl<T extends string>({
         const active = option.value === value;
         return (
           <Pressable
-            key={option.value}
+            // `active` in the key forces a REMOUNT when the segment toggles:
+            // NativeWind can't dynamically add styles like shadow-sm to an
+            // already-mounted native component (css-interop "upgrade" crash);
+            // a fresh mount sidesteps that entirely.
+            key={`${option.value}-${active}`}
             className={`flex-1 items-center rounded-full py-2 ${
               active ? "bg-white shadow-sm dark:bg-gray-600" : ""
             }`}

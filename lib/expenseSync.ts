@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import { useAuthStore } from "./authStore";
 import { supabase } from "./supabase";
 import { useToastStore } from "./toastStore";
-import type { Expense } from "./types";
+import type { Expense, Settlement } from "./types";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════
@@ -48,6 +48,9 @@ import type { Expense } from "./types";
  *  true while the row is awaiting server confirmation. */
 export type CachedExpense = Expense & { _optimistic?: boolean };
 
+/** A settlement row in the cache (v1.2) — same `_optimistic` convention. */
+export type CachedSettlement = Settlement & { _optimistic?: boolean };
+
 /** Thrown when a versioned update matches zero rows: someone else updated
  *  (or deleted) the expense after we last saw it. */
 export class ConflictError extends Error {
@@ -61,6 +64,10 @@ export class ConflictError extends Error {
 
 export const expenseKeys = {
   list: (groupId: string) => ["expenses", groupId] as const,
+};
+
+export const settlementKeys = {
+  list: (groupId: string) => ["settlements", groupId] as const,
 };
 
 // ── Query ────────────────────────────────────────────────────────────────
@@ -81,62 +88,88 @@ export function useExpenses(groupId: string) {
 }
 
 // ── Cache helpers ────────────────────────────────────────────────────────
-// All cache surgery goes through these three functions. Mutations use them
-// below; Phase 4's realtime handler will reuse them, which is what keeps
-// the two write paths consistent.
+// All cache surgery — for BOTH cached row kinds — goes through these
+// functions. Mutations use them below; the realtime handler reuses them,
+// which is what keeps the two write paths consistent.
 
-function setList(
+interface CachedRow {
+  id: string;
+  created_at: string;
+}
+
+function setList<T extends CachedRow>(
   queryClient: QueryClient,
-  groupId: string,
-  update: (list: CachedExpense[]) => CachedExpense[],
+  key: readonly unknown[],
+  update: (list: T[]) => T[],
 ) {
-  queryClient.setQueryData<CachedExpense[]>(
-    expenseKeys.list(groupId),
-    (old) => update(old ?? []),
-  );
+  queryClient.setQueryData<T[]>(key, (old) => update(old ?? []));
 }
 
 /** Insert a row (or replace it if already present), keeping newest-first order. */
-export function upsertExpense(
+function upsertRow<T extends CachedRow>(
   queryClient: QueryClient,
-  groupId: string,
-  expense: CachedExpense,
+  key: readonly unknown[],
+  row: T,
 ) {
-  setList(queryClient, groupId, (list) => {
-    const rest = list.filter((e) => e.id !== expense.id);
-    return [...rest, expense].sort((a, b) =>
+  setList<T>(queryClient, key, (list) => {
+    const rest = list.filter((r) => r.id !== row.id);
+    return [...rest, row].sort((a, b) =>
       b.created_at.localeCompare(a.created_at),
     );
   });
 }
 
-/** Replace the row with id `oldId` (e.g. a temp optimistic id) by `expense`.
+/** Replace the row with id `oldId` (e.g. a temp optimistic id) by `row`.
  *  Also drops any existing row with the new id: our own INSERT can be echoed
  *  back by the realtime channel *before* the mutation's onSuccess runs, and
- *  a plain map() would then leave the expense in the list twice. */
+ *  a plain map() would then leave the row in the list twice. */
+function replaceRow<T extends CachedRow>(
+  queryClient: QueryClient,
+  key: readonly unknown[],
+  oldId: string,
+  row: T,
+) {
+  setList<T>(queryClient, key, (list) => {
+    const rest = list.filter((r) => r.id !== oldId && r.id !== row.id);
+    return [...rest, row].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    );
+  });
+}
+
+/** Remove a row from a cached list. */
+function removeRow(
+  queryClient: QueryClient,
+  key: readonly unknown[],
+  id: string,
+) {
+  setList(queryClient, key, (list) => list.filter((r) => r.id !== id));
+}
+
+// Expense-typed wrappers (kept as the module's public cache API).
+export function upsertExpense(
+  queryClient: QueryClient,
+  groupId: string,
+  expense: CachedExpense,
+) {
+  upsertRow(queryClient, expenseKeys.list(groupId), expense);
+}
+
 export function replaceExpense(
   queryClient: QueryClient,
   groupId: string,
   oldId: string,
   expense: CachedExpense,
 ) {
-  setList(queryClient, groupId, (list) => {
-    const rest = list.filter((e) => e.id !== oldId && e.id !== expense.id);
-    return [...rest, expense].sort((a, b) =>
-      b.created_at.localeCompare(a.created_at),
-    );
-  });
+  replaceRow(queryClient, expenseKeys.list(groupId), oldId, expense);
 }
 
-/** Remove a row from the cached list. */
 export function removeExpense(
   queryClient: QueryClient,
   groupId: string,
   expenseId: string,
 ) {
-  setList(queryClient, groupId, (list) =>
-    list.filter((e) => e.id !== expenseId),
-  );
+  removeRow(queryClient, expenseKeys.list(groupId), expenseId);
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────
@@ -341,11 +374,16 @@ function applyIncomingRow(
 }
 
 /**
- * Subscribe the group's expense list to Supabase Realtime for as long as the
- * screen is mounted. RLS applies to the subscription too — members only ever
- * receive their own groups' rows.
+ * Subscribe the group's expenses AND settlements to Supabase Realtime for
+ * as long as the screen is mounted — one channel, two table bindings. RLS
+ * applies to the subscription too: members only ever receive their own
+ * groups' rows.
+ *
+ * Settlements are simpler to merge than expenses: they're immutable (no
+ * UPDATE events, no version check) — INSERT upserts (idempotent against our
+ * own echo), DELETE removes.
  */
-export function useExpenseRealtime(groupId: string) {
+export function useGroupRealtime(groupId: string) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -381,10 +419,162 @@ export function useExpenseRealtime(groupId: string) {
           }
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "settlements",
+          filter: `group_id=eq.${groupId}`,
+        },
+        (payload) => {
+          switch (payload.eventType) {
+            case "INSERT":
+              upsertRow(
+                queryClient,
+                settlementKeys.list(groupId),
+                payload.new as CachedSettlement,
+              );
+              break;
+            case "DELETE":
+              removeRow(
+                queryClient,
+                settlementKeys.list(groupId),
+                (payload.old as { id: string }).id,
+              );
+              break;
+          }
+        },
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, [groupId, queryClient]);
+}
+
+// ── Settlements (v1.2) ───────────────────────────────────────────────────
+// Recording a payment gets the same optimistic treatment as expenses:
+// instant row with a temp id, reconcile on success, rollback + toast on
+// failure. What it deliberately DOESN'T get is versioning — settlements are
+// immutable (delete + re-record instead of edit), so there is no concurrent
+// -edit conflict to resolve.
+
+export function useSettlements(groupId: string) {
+  return useQuery({
+    queryKey: settlementKeys.list(groupId),
+    queryFn: async (): Promise<CachedSettlement[]> => {
+      const { data, error } = await supabase
+        .from("settlements")
+        .select("*")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export interface AddSettlementInput {
+  from_user: string;
+  to_user: string;
+  amount: number;
+}
+
+export function useAddSettlement(groupId: string) {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.session?.user.id);
+
+  return useMutation({
+    mutationFn: async (input: AddSettlementInput): Promise<Settlement> => {
+      const { data, error } = await supabase
+        .from("settlements")
+        .insert({ ...input, group_id: groupId, created_by: userId })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({
+        queryKey: settlementKeys.list(groupId),
+      });
+      const previous = queryClient.getQueryData<CachedSettlement[]>(
+        settlementKeys.list(groupId),
+      );
+
+      const tempId = `optimistic-${Math.random().toString(36).slice(2)}`;
+      upsertRow(queryClient, settlementKeys.list(groupId), {
+        id: tempId,
+        group_id: groupId,
+        from_user: input.from_user,
+        to_user: input.to_user,
+        amount: input.amount,
+        created_by: userId ?? null,
+        created_at: new Date().toISOString(),
+        _optimistic: true,
+      });
+      return { previous, tempId };
+    },
+
+    onSuccess: (serverRow, _input, context) => {
+      replaceRow(
+        queryClient,
+        settlementKeys.list(groupId),
+        context.tempId,
+        serverRow,
+      );
+    },
+
+    onError: (_err, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          settlementKeys.list(groupId),
+          context.previous,
+        );
+      }
+      useToastStore
+        .getState()
+        .show("Couldn't record the payment — it has been removed. Try again.");
+    },
+  });
+}
+
+export function useDeleteSettlement(groupId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (settlementId: string): Promise<void> => {
+      const { error } = await supabase
+        .from("settlements")
+        .delete()
+        .eq("id", settlementId);
+      if (error) throw error;
+    },
+
+    onMutate: async (settlementId) => {
+      await queryClient.cancelQueries({
+        queryKey: settlementKeys.list(groupId),
+      });
+      const previous = queryClient.getQueryData<CachedSettlement[]>(
+        settlementKeys.list(groupId),
+      );
+      removeRow(queryClient, settlementKeys.list(groupId), settlementId);
+      return { previous };
+    },
+
+    onError: (_err, _settlementId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          settlementKeys.list(groupId),
+          context.previous,
+        );
+      }
+      useToastStore
+        .getState()
+        .show("Couldn't delete the payment — it has been restored.");
+    },
+  });
 }

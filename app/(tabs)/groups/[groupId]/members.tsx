@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
+import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
+import { ListRow } from "@/components/ui/ListRow";
 import {
   useGroup,
   useGroupMembers,
@@ -16,23 +18,33 @@ import {
 } from "@/lib/groups";
 import { inviteUrl } from "@/lib/invites";
 
-function MemberRow({ member }: { member: MemberWithProfile }) {
-  const initials = member.profiles.name
+function initials(name: string): string {
+  return name
     .split(/\s+/)
     .map((part) => part[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
 
+function MemberRow({ member }: { member: MemberWithProfile }) {
+  const tint = entityTint(member.user_id);
+  const joined = new Date(member.joined_at).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
   return (
-    <View className="mb-2 flex-row items-center rounded-xl bg-white p-3 dark:bg-gray-900">
-      <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-teal-600">
-        <Text className="text-sm font-bold text-white">{initials}</Text>
-      </View>
-      <Text className="text-base font-medium text-gray-900 dark:text-gray-100">
-        {member.profiles.name}
-      </Text>
-    </View>
+    <ListRow
+      avatar={
+        <CircleAvatar
+          initials={initials(member.profiles.name)}
+          bg={tint.bg}
+          fg={tint.fg}
+        />
+      }
+      title={member.profiles.name}
+      subtitle={`since ${joined}`}
+    />
   );
 }
 
@@ -49,35 +61,41 @@ export default function MembersScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-4 pt-4 dark:bg-gray-950">
+    <View className="flex-1 bg-paper px-5 pt-4 dark:bg-gray-950">
       <Stack.Screen options={{ title: "Members" }} />
 
-      <View className="mb-4 items-center rounded-2xl border border-dashed border-teal-400 bg-teal-50 p-4 dark:border-teal-700 dark:bg-teal-950">
-        <Text className="mb-1 text-sm text-gray-600 dark:text-gray-300">Invite code</Text>
-        <Text className="mb-3 text-3xl font-bold tracking-widest text-teal-700 dark:text-teal-300">
+      <View className="mb-2 items-center rounded-3xl bg-white p-5 dark:bg-gray-900">
+        <Text className="text-sm font-medium text-gray-400">Invite code</Text>
+        <Text className="mb-3 mt-1 text-3xl font-bold tracking-widest text-ink dark:text-gray-50">
           {group?.invite_code ?? "······"}
         </Text>
         {group ? (
-          <View className="mb-3 rounded-xl bg-white p-3">
+          <View className="rounded-2xl bg-white p-3">
             {/* Scannable from the join screen's "Scan QR" option */}
-            <QRCode value={inviteUrl(group.invite_code)} size={150} />
+            <QRCode value={inviteUrl(group.invite_code)} size={140} />
           </View>
         ) : null}
         <Pressable
-          className="rounded-lg bg-teal-600 px-4 py-2 active:bg-teal-700"
+          className="mt-4 w-full items-center rounded-full bg-ink py-3 active:opacity-80 dark:bg-white"
           onPress={shareInvite}
         >
-          <Text className="text-sm font-semibold text-white">Share code</Text>
+          <Text className="text-sm font-semibold text-white dark:text-ink">
+            Share code
+          </Text>
         </Pressable>
       </View>
 
+      <Text className="mb-1 mt-4 text-lg font-bold text-ink dark:text-gray-100">
+        Members
+      </Text>
+
       {error ? (
         <View className="mt-8 items-center">
-          <Text className="mb-2 text-center text-base text-red-500">
+          <Text className="mb-2 text-center text-base text-rust">
             Couldn't load members.
           </Text>
           <Pressable onPress={() => refetch()}>
-            <Text className="font-semibold text-teal-600">Try again</Text>
+            <Text className="font-semibold text-ledger">Try again</Text>
           </Pressable>
         </View>
       ) : isPending ? (

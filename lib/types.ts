@@ -43,12 +43,28 @@ export interface Expense {
   updated_at: string;
 }
 
+/**
+ * v1.2 — a recorded payment (cash/UPI outside the app): from_user paid
+ * to_user. Partial amounts allowed. Immutable — delete + re-record, no edit.
+ */
+export interface Settlement {
+  id: string;
+  group_id: string;
+  from_user: string;
+  to_user: string;
+  amount: number;
+  created_by: string | null;
+  created_at: string;
+}
+
 /** v1.1 — append-only feed rows, written only by DB triggers (phase6.sql). */
 export type ActivityAction =
   | "expense_added"
   | "expense_edited"
   | "expense_deleted"
-  | "member_joined";
+  | "member_joined"
+  | "settled_up"
+  | "settlement_deleted";
 
 export interface ActivityEntry {
   id: string;

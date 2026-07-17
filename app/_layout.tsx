@@ -38,6 +38,29 @@ onlineManager.setEventListener((setOnline) =>
 
 const queryClient = new QueryClient();
 
+// Navigation chrome follows the design tokens: paper background, ledger
+// accent, no hairlines between header/tab bar and content.
+const LightNavTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: "#2F5D50", // ledger
+    background: "#F6F8F8", // paper
+    card: "#F6F8F8",
+    text: "#16293B", // ink
+  },
+};
+
+const DarkNavTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: "#2F5D50",
+    background: "#030712", // gray-950
+    card: "#030712",
+  },
+};
+
 export default function RootLayout() {
   const { session, isReady } = useAuthStore();
   // Apply the persisted theme preference to NativeWind. Two subtleties:
@@ -81,7 +104,9 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <ThemeProvider
+        value={colorScheme === "dark" ? DarkNavTheme : LightNavTheme}
+      >
         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         <Stack screenOptions={{ headerShown: false }}>
           {/* Route guard: signed-in users get the app tabs, everyone else the

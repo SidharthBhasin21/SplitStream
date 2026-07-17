@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "./supabase";
-import type { Expense, Group, Profile } from "./types";
+import type { Expense, Group, Profile, Settlement } from "./types";
 
 /**
  * Server-state layer for groups (Phase 2). All group reads rely on RLS to
@@ -25,28 +25,39 @@ export const groupKeys = {
   members: (groupId: string) => ["members", groupId] as const,
 };
 
+export interface GroupSummaries {
+  expenses: Record<string, Pick<Expense, "amount" | "paid_by">[]>;
+  settlements: Record<
+    string,
+    Pick<Settlement, "amount" | "from_user" | "to_user">[]
+  >;
+}
+
 /**
- * Minimal expense triples for EVERY group I belong to, grouped by group —
- * feeds the live per-group balances on the groups list (design v2). No user
- * filter: RLS scopes rows to my groups. Read-only and additive; the
- * per-group screens keep using useExpenses/expenseSync untouched.
+ * Minimal expense + settlement rows for EVERY group I belong to, grouped by
+ * group — feeds the live per-group balances on the groups list (design v2).
+ * No user filter: RLS scopes rows to my groups. Read-only and additive; the
+ * per-group screens keep using the expenseSync queries untouched.
  */
 export function useGroupExpenseSummaries() {
   return useQuery({
     queryKey: ["group-expense-summaries"],
-    queryFn: async (): Promise<
-      Record<string, Pick<Expense, "amount" | "paid_by">[]>
-    > => {
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("group_id, amount, paid_by");
-      if (error) throw error;
-      const byGroup: Record<string, Pick<Expense, "amount" | "paid_by">[]> =
-        {};
-      for (const row of data) {
-        (byGroup[row.group_id] ??= []).push(row);
+    queryFn: async (): Promise<GroupSummaries> => {
+      const [expensesRes, settlementsRes] = await Promise.all([
+        supabase.from("expenses").select("group_id, amount, paid_by"),
+        supabase.from("settlements").select("group_id, amount, from_user, to_user"),
+      ]);
+      if (expensesRes.error) throw expensesRes.error;
+      if (settlementsRes.error) throw settlementsRes.error;
+
+      const summaries: GroupSummaries = { expenses: {}, settlements: {} };
+      for (const row of expensesRes.data) {
+        (summaries.expenses[row.group_id] ??= []).push(row);
       }
-      return byGroup;
+      for (const row of settlementsRes.data) {
+        (summaries.settlements[row.group_id] ??= []).push(row);
+      }
+      return summaries;
     },
   });
 }

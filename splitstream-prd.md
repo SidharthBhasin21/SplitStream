@@ -291,3 +291,34 @@ create table push_tokens (
   primary key (user_id, token)
 );
 ```
+
+### 15.7 Settle up (v1.2)
+
+- Members can record payments made outside the app ("B paid A ₹300" — cash,
+  UPI, whatever). **Partial payments are first-class:** the settle screen
+  suggests the full settle-up amount but any smaller amount can be entered.
+- `settlements` table: group_id, from_user → to_user, amount (> 0),
+  created_by. **Immutable** — no edits and no version column; a mistake is
+  deleted (creator only) and re-recorded. Conflict resolution stays confined
+  to expenses, where concurrent edits actually happen.
+- Balance semantics: a settlement raises the payer's net and lowers the
+  receiver's by the amount; zero-sum is preserved pairwise.
+- Settlements are optimistic + realtime like expenses (same cache-helper
+  infrastructure in lib/expenseSync.ts), appear in the transactions list and
+  the activity feed (`settled_up` / `settlement_deleted` actions), and push
+  notify like any other activity.
+- Still NOT payment integration — no money moves through SplitStream (the
+  Section 3 non-goal stands; this is bookkeeping).
+
+### 15.8 Google sign-in (v1.2)
+
+- "Continue with Google" on login and signup, via Supabase's OAuth flow in
+  an in-app browser session (`signInWithOAuth` + expo-web-browser +
+  deep-link redirect, tokens handed to `setSession`). Chosen over the
+  native Google sheet because it needs no native module or SHA-1
+  credentials — identical behavior in Expo Go and dev builds.
+- Profile row creation is unchanged: the phase1 signup trigger reads
+  Google's `name` from the user metadata.
+- Requires dashboard setup: a Google Cloud web OAuth client (redirect URI =
+  the project's /auth/v1/callback), enabled Google provider in Supabase
+  Auth, and the app's deep-link schemes in the auth redirect allow-list.

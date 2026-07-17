@@ -91,5 +91,9 @@ export function describeActivity(entry: ActivityWithActor): string {
       return `${actor} deleted ${what}${amount ? ` (${amount})` : ""}`;
     case "member_joined":
       return `${actor} joined the group`;
+    case "settled_up":
+      return `${actor} recorded a payment${amount ? ` of ${amount}` : ""}`;
+    case "settlement_deleted":
+      return `${actor} deleted a payment${amount ? ` of ${amount}` : ""}`;
   }
 }

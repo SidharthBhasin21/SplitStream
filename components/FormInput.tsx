@@ -28,14 +28,18 @@ export function FormInput<T extends FieldValues>({
       name={name}
       render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
         <View className="mb-4">
-          <Text className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+          <Text className="mb-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
             {label}
           </Text>
           <TextInput
-            className={`rounded-xl border bg-white px-4 py-3 text-base text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${
+            // Both branches carry a dark: border class on purpose: the error
+            // border toggles on a MOUNTED input (remount would drop focus),
+            // and NativeWind crashes if a live component's classes change
+            // which style features they use (css-interop upgrade limitation).
+            className={`rounded-2xl border bg-white px-4 py-3.5 text-base text-ink dark:bg-gray-900 dark:text-gray-100 ${
               error
-                ? "border-red-400"
-                : "border-gray-300 dark:border-gray-700"
+                ? "border-rust dark:border-rust"
+                : "border-gray-200 dark:border-gray-800"
             }`}
             placeholderTextColor="#9ca3af"
             onChangeText={onChange}
@@ -44,7 +48,7 @@ export function FormInput<T extends FieldValues>({
             {...inputProps}
           />
           {error ? (
-            <Text className="mt-1 text-xs text-red-500">{error.message}</Text>
+            <Text className="mt-1 text-xs text-rust">{error.message}</Text>
           ) : null}
         </View>
       )}

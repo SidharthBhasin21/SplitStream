@@ -36,7 +36,7 @@ export default function CreateGroupScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-6 pt-8 dark:bg-gray-950">
+    <View className="flex-1 bg-paper px-6 pt-8 dark:bg-gray-950">
       <FormInput
         control={control}
         name="name"
@@ -46,20 +46,20 @@ export default function CreateGroupScreen() {
       />
 
       {serverError ? (
-        <Text className="mb-3 text-center text-sm text-red-500">
+        <Text className="mb-3 text-center text-sm text-rust">
           {serverError}
         </Text>
       ) : null}
 
       <Pressable
-        className="mt-2 items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700 disabled:opacity-60"
+        className="mt-2 items-center rounded-full bg-ink py-4 active:opacity-80 disabled:opacity-60 dark:bg-white"
         onPress={handleSubmit(onSubmit)}
         disabled={createGroup.isPending}
       >
         {createGroup.isPending ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text className="text-base font-semibold text-white">
+          <Text className="text-base font-semibold text-white dark:text-ink">
             Create group
           </Text>
         )}

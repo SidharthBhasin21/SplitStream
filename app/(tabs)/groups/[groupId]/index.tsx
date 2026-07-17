@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   Share,
@@ -21,14 +22,20 @@ import { useAuthStore } from "@/lib/authStore";
 import { computeBalances, formatINR } from "@/lib/balances";
 import { asCategory, CATEGORY_META } from "@/lib/categories";
 import {
-  useExpenseRealtime,
+  useDeleteSettlement,
   useExpenses,
+  useGroupRealtime,
+  useSettlements,
   type CachedExpense,
+  type CachedSettlement,
 } from "@/lib/expenseSync";
 import { useGroup, useGroupMembers } from "@/lib/groups";
-import { useToastStore } from "@/lib/toastStore";
 
 type Filter = "all" | "iowe" | "owedtome";
+
+type Txn =
+  | { kind: "expense"; row: CachedExpense }
+  | { kind: "settlement"; row: CachedSettlement };
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
@@ -69,8 +76,10 @@ export default function GroupDetailScreen() {
   const { data: group } = useGroup(groupId);
   const { data: members } = useGroupMembers(groupId);
   const { data: expenses, isPending } = useExpenses(groupId);
+  const { data: settlements } = useSettlements(groupId);
+  const deleteSettlement = useDeleteSettlement(groupId);
   // Live-merge other members' changes into the list while this screen is open.
-  useExpenseRealtime(groupId);
+  useGroupRealtime(groupId);
 
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -84,22 +93,37 @@ export default function GroupDetailScreen() {
   // including optimistic ones, so balances react instantly too (PRD 5.5).
   const balances = useMemo(
     () =>
-      computeBalances(expenses ?? [], (members ?? []).map((m) => m.user_id)),
-    [expenses, members],
+      computeBalances(
+        expenses ?? [],
+        (members ?? []).map((m) => m.user_id),
+        settlements ?? [],
+      ),
+    [expenses, members, settlements],
   );
   const myNet = userId ? (balances[userId] ?? 0) : 0;
   const memberCount = members?.length ?? 0;
 
-  const visibleExpenses = useMemo(() => {
-    const list = expenses ?? [];
+  // One mixed, newest-first transaction list. Settlements only appear under
+  // "All" — the owe/owed filters are about splitting expenses.
+  const transactions = useMemo<Txn[]>(() => {
+    let expenseList = expenses ?? [];
     if (filter === "iowe") {
-      return list.filter((e) => e.paid_by !== null && e.paid_by !== userId);
+      expenseList = expenseList.filter(
+        (e) => e.paid_by !== null && e.paid_by !== userId,
+      );
+    } else if (filter === "owedtome") {
+      expenseList = expenseList.filter((e) => e.paid_by === userId);
     }
-    if (filter === "owedtome") {
-      return list.filter((e) => e.paid_by === userId);
+    const rows: Txn[] = expenseList.map((e) => ({ kind: "expense", row: e }));
+    if (filter === "all") {
+      for (const s of settlements ?? []) {
+        rows.push({ kind: "settlement", row: s });
+      }
     }
-    return list;
-  }, [expenses, filter, userId]);
+    return rows.sort((a, b) =>
+      b.row.created_at.localeCompare(a.row.created_at),
+    );
+  }, [expenses, settlements, filter, userId]);
 
   const shareInvite = () => {
     if (!group) return;
@@ -154,6 +178,60 @@ export default function GroupDetailScreen() {
     );
   };
 
+  const renderSettlement = (item: CachedSettlement) => {
+    const date = new Date(item.created_at).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+    });
+    const fromName =
+      item.from_user === userId
+        ? "You"
+        : (nameById[item.from_user] ?? "Someone");
+    const toName =
+      item.to_user === userId ? "you" : (nameById[item.to_user] ?? "someone");
+    const canDelete = item.created_by === userId && !item._optimistic;
+
+    const confirmDelete = () => {
+      Alert.alert("Delete this payment?", "Balances will shift back.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteSettlement.mutate(item.id),
+        },
+      ]);
+    };
+
+    return (
+      <Animated.View entering={FadeInDown.duration(250)}>
+        <ListRow
+          avatar={
+            <CircleAvatar icon="handshake-o" bg="#D9EFE7" fg="#2F5D50" />
+          }
+          title={`${fromName} paid ${toName}`}
+          subtitle={`Payment${item._optimistic ? " · Syncing…" : ""}`}
+          right={
+            <View className="items-end">
+              <Text className="text-xs text-gray-400 dark:text-gray-500">
+                {date}
+              </Text>
+              <Text className="text-base font-bold text-gray-500 dark:text-gray-400">
+                {formatINR(item.amount)}
+              </Text>
+            </View>
+          }
+          dimmed={item._optimistic}
+          onPress={canDelete ? confirmDelete : undefined}
+        />
+      </Animated.View>
+    );
+  };
+
+  const renderTxn = ({ item }: { item: Txn }) =>
+    item.kind === "expense"
+      ? renderExpense({ item: item.row })
+      : renderSettlement(item.row);
+
   return (
     <View className="flex-1 bg-paper dark:bg-gray-950">
       <Stack.Screen options={{ headerShown: false }} />
@@ -168,7 +246,14 @@ export default function GroupDetailScreen() {
         }
         topBar={
           <View className="flex-row items-center justify-between">
-            <Pressable hitSlop={12} onPress={() => router.back()}>
+            <Pressable
+              hitSlop={12}
+              // Deep links (push-notification taps, direct URLs) can land
+              // here with no history — fall back to the groups list.
+              onPress={() =>
+                router.canGoBack() ? router.back() : router.replace("/groups")
+              }
+            >
               <FontAwesome name="chevron-left" size={18} color="white" />
             </Pressable>
             <Text
@@ -193,10 +278,7 @@ export default function GroupDetailScreen() {
           {
             icon: "handshake-o",
             label: "Settle up",
-            onPress: () =>
-              useToastStore
-                .getState()
-                .show("Settling up is on the roadmap — v2."),
+            onPress: () => router.push(`/groups/${groupId}/settle`),
           },
           { icon: "share-alt", label: "Share", onPress: shareInvite },
         ]}
@@ -209,9 +291,9 @@ export default function GroupDetailScreen() {
       ) : (
         <FlatList
           className="mt-4 px-5"
-          data={visibleExpenses}
-          keyExtractor={(e) => e.id}
-          renderItem={renderExpense}
+          data={transactions}
+          keyExtractor={(t) => t.row.id}
+          renderItem={renderTxn}
           ListHeaderComponent={
             <View>
               {members.length > 0 && (expenses?.length ?? 0) > 0 ? (

@@ -1,4 +1,7 @@
-import type { Expense } from "./types";
+import type { Expense, Settlement } from "./types";
+
+/** The slice of a settlement the balance math needs. */
+export type SettlementLike = Pick<Settlement, "amount" | "from_user" | "to_user">;
 
 /**
  * Pure balance calculation (PRD 5.5). No I/O, no state — given the expense
@@ -8,6 +11,12 @@ import type { Expense } from "./types";
  * v1 is equal-split only: every expense is shared evenly by ALL current
  * members, and the payer is credited the full amount. Net = paid − share.
  * Balances always sum to (approximately) zero by construction.
+ *
+ * Settlements (v1.2) shift money directly between two members: the payer's
+ * net RISES by the amount (their debt shrinks / credit grows) and the
+ * receiver's net FALLS (they've been paid back). A partial payment is just
+ * a smaller shift — nothing else changes. Settlements always sum to zero
+ * pairwise, so the zero-sum invariant is untouched.
  *
  * Money math note: amounts are floats (numeric(10,2) over JSON), so shares
  * like 100/3 produce repeating decimals. We accumulate at full float
@@ -21,6 +30,7 @@ import type { Expense } from "./types";
 export function computeBalances(
   expenses: Pick<Expense, "amount" | "paid_by">[],
   memberIds: string[],
+  settlements: SettlementLike[] = [],
 ): Record<string, number> {
   const net: Record<string, number> = {};
   for (const id of memberIds) net[id] = 0;
@@ -42,6 +52,14 @@ export function computeBalances(
     for (const id of memberIds) {
       net[id] -= share;
     }
+  }
+
+  for (const s of settlements) {
+    // Defensive key creation, same as for unknown payers above.
+    if (!(s.from_user in net)) net[s.from_user] = 0;
+    if (!(s.to_user in net)) net[s.to_user] = 0;
+    net[s.from_user] += s.amount;
+    net[s.to_user] -= s.amount;
   }
 
   // Round to whole paise, tracking the residual the rounding introduces.
@@ -75,6 +93,7 @@ export function computeMyNet(
   expenses: Pick<Expense, "amount" | "paid_by">[],
   memberCount: number,
   userId: string,
+  settlements: SettlementLike[] = [],
 ): number {
   if (memberCount <= 0) return 0;
   let net = 0;
@@ -82,6 +101,10 @@ export function computeMyNet(
     if (expense.paid_by === null) continue;
     if (expense.paid_by === userId) net += expense.amount;
     net -= expense.amount / memberCount;
+  }
+  for (const s of settlements) {
+    if (s.from_user === userId) net += s.amount;
+    if (s.to_user === userId) net -= s.amount;
   }
   return Math.round(net * 100) / 100;
 }

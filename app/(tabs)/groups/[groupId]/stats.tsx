@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
+import { EmptyState } from "@/components/ui/EmptyState";
 import { formatINR } from "@/lib/balances";
 import { CATEGORY_META } from "@/lib/categories";
 import { useExpenses } from "@/lib/expenseSync";
@@ -21,8 +22,8 @@ function CategoryBars({
 }) {
   const max = data[0]?.total ?? 0;
   return (
-    <View className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-      <Text className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">
+    <View className="rounded-3xl bg-white p-5 dark:bg-gray-900">
+      <Text className="mb-3 text-sm font-medium text-gray-400">
         By category
       </Text>
       {data.map(({ category, total }) => {
@@ -34,20 +35,23 @@ function CategoryBars({
                 <FontAwesome
                   name={meta.icon as never}
                   size={13}
-                  color="#0d9488"
+                  color={meta.tint.fg}
                 />
-                <Text className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                <Text className="ml-2 text-sm text-gray-600 dark:text-gray-300">
                   {meta.label}
                 </Text>
               </View>
-              <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <Text className="text-sm font-bold text-ink dark:text-gray-100">
                 {formatINR(total)}
               </Text>
             </View>
             <View className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
               <View
-                className="h-full rounded-full bg-teal-500"
-                style={{ width: `${max > 0 ? (total / max) * 100 : 0}%` }}
+                className="h-full rounded-full"
+                style={{
+                  width: `${max > 0 ? (total / max) * 100 : 0}%`,
+                  backgroundColor: meta.tint.fg,
+                }}
               />
             </View>
           </View>
@@ -65,8 +69,8 @@ const CHART_HEIGHT = 128;
 function MonthBars({ data }: { data: ReturnType<typeof spendByMonth> }) {
   const max = Math.max(...data.map((m) => m.total), 1);
   return (
-    <View className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-      <Text className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">
+    <View className="mt-4 rounded-3xl bg-white p-5 dark:bg-gray-900">
+      <Text className="mb-3 text-sm font-medium text-gray-400">
         Last 6 months
       </Text>
       <View className="flex-row items-end justify-between">
@@ -74,7 +78,9 @@ function MonthBars({ data }: { data: ReturnType<typeof spendByMonth> }) {
           <View key={m.key} className="flex-1 items-center justify-end">
             <View
               className={`w-6 rounded-t-md ${
-                m.total > 0 ? "bg-teal-500" : "bg-gray-100 dark:bg-gray-800"
+                m.total > 0
+                  ? "bg-ledger dark:bg-ledger"
+                  : "bg-gray-100 dark:bg-gray-800"
               }`}
               // Zero months keep a 3px stub so the axis reads as continuous.
               style={{
@@ -103,28 +109,24 @@ export default function StatsScreen() {
   );
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 px-4 pt-4 dark:bg-gray-950">
+    <ScrollView className="flex-1 bg-paper px-5 pt-4 dark:bg-gray-950">
       <Stack.Screen options={{ title: "Stats" }} />
 
       {isPending ? (
         <ActivityIndicator className="mt-8" />
       ) : (expenses ?? []).length === 0 ? (
-        <View className="items-center px-8 pt-16">
-          <FontAwesome name="bar-chart" size={40} color="#d1d5db" />
-          <Text className="mb-2 mt-4 text-center text-xl font-semibold text-gray-900 dark:text-gray-100">
-            No data yet
-          </Text>
-          <Text className="text-center text-base text-gray-500 dark:text-gray-400">
-            Charts appear once the group has expenses.
-          </Text>
-        </View>
+        <EmptyState
+          icon="bar-chart"
+          title="No data yet"
+          message="Charts appear once the group has expenses."
+        />
       ) : (
         <>
-          <View className="mb-4 items-center rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
-            <Text className="text-sm text-gray-500 dark:text-gray-400">
+          <View className="mb-4 items-center rounded-3xl bg-white p-5 dark:bg-gray-900">
+            <Text className="text-sm font-medium text-gray-400">
               Total group spend
             </Text>
-            <Text className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-50">
+            <Text className="mt-1 text-4xl font-bold text-ink dark:text-gray-50">
               {formatINR(total)}
             </Text>
           </View>

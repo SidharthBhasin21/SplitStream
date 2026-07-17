@@ -42,25 +42,25 @@ export default function ScanScreen() {
   };
 
   if (!permission) {
-    return <View className="flex-1 bg-gray-50" />;
+    return <View className="flex-1 bg-paper dark:bg-gray-950" />;
   }
 
   if (!permission.granted) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50 px-8">
-        <Text className="mb-2 text-center text-xl font-semibold text-gray-900">
+      <View className="flex-1 items-center justify-center bg-paper px-8 dark:bg-gray-950">
+        <Text className="mb-2 text-center text-xl font-bold text-ink dark:text-gray-100">
           Camera access needed
         </Text>
-        <Text className="mb-6 text-center text-base text-gray-500">
+        <Text className="mb-6 text-center text-base text-gray-400">
           SplitStream uses the camera only to scan group invite QR codes.
         </Text>
         <Pressable
-          className="items-center rounded-xl bg-teal-600 px-6 py-3.5 active:bg-teal-700"
+          className="items-center rounded-full bg-ink px-8 py-4 active:opacity-80 dark:bg-white"
           onPress={() =>
             permission.canAskAgain ? requestPermission() : Linking.openSettings()
           }
         >
-          <Text className="text-base font-semibold text-white">
+          <Text className="text-base font-semibold text-white dark:text-ink">
             {permission.canAskAgain ? "Allow camera" : "Open settings"}
           </Text>
         </Pressable>

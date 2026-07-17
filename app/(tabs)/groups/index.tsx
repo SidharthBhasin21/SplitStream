@@ -1,6 +1,7 @@
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -33,20 +34,23 @@ function groupInitials(name: string): string {
 
 export default function GroupsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const userId = useAuthStore((s) => s.session?.user.id) ?? "";
   const { data: groups, isPending, error, refetch, isRefetching } = useGroups();
   const { data: summaries } = useGroupExpenseSummaries();
   const [filter, setFilter] = useState<Filter>("overall");
 
-  // Live net per group (my perspective), derived from the summary query.
+  // Live net per group (my perspective), derived from the summary query —
+  // expenses split equally, settlements shifted pairwise (v1.2).
   const withNet = useMemo(
     () =>
       (groups ?? []).map((group: GroupListItem) => ({
         group,
         net: computeMyNet(
-          summaries?.[group.id] ?? [],
+          summaries?.expenses?.[group.id] ?? [],
           group.group_members[0]?.count ?? 0,
           userId,
+          summaries?.settlements?.[group.id] ?? [],
         ),
       })),
     [groups, summaries, userId],
@@ -64,13 +68,18 @@ export default function GroupsScreen() {
   }, [withNet, filter]);
 
   return (
-    <View className="flex-1 bg-paper px-5 dark:bg-gray-950">
+    <View
+      className="flex-1 bg-paper px-5 dark:bg-gray-950"
+      style={{ paddingTop: insets.top }}
+    >
       {/* Summary header (design-ref screen 1) */}
       <View className="pt-4">
         <Text className="text-sm font-medium text-gray-400">Summary</Text>
         <Text
           className={`mt-1 text-5xl font-bold ${
-            total < 0 ? "text-rust" : "text-ink dark:text-gray-50"
+            total < 0
+              ? "text-rust dark:text-rust"
+              : "text-ink dark:text-gray-50"
           }`}
         >
           {total < 0 ? "-" : ""}

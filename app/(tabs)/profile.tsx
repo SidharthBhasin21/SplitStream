@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
 import { supabase } from "@/lib/supabase";
 import { useThemeStore, type ThemePreference } from "@/lib/themeStore";
@@ -23,6 +26,7 @@ async function fetchProfile(userId: string): Promise<Profile> {
 }
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id;
   const { preference, setPreference } = useThemeStore();
@@ -44,6 +48,7 @@ export default function ProfileScreen() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  const tint = userId ? entityTint(userId) : { bg: "#E8ECEB", fg: "#5C6B68" };
 
   const confirmSignOut = () => {
     Alert.alert("Sign out?", "You can log back in any time.", [
@@ -57,64 +62,54 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-6 pt-10 dark:bg-gray-950">
+    <View
+      className="flex-1 bg-paper px-5 dark:bg-gray-950"
+      style={{ paddingTop: insets.top + 24 }}
+    >
+      {/* Centered identity block (design-ref 04) */}
       <View className="items-center">
-        <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-teal-600">
-          {isPending ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-2xl font-bold text-white">{initials}</Text>
-          )}
-        </View>
+        {isPending ? (
+          <View className="h-24 w-24 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <CircleAvatar initials={initials} bg={tint.bg} fg={tint.fg} size={96} />
+        )}
         {error ? (
-          <Pressable onPress={() => refetch()}>
-            <Text className="text-base text-red-500">
+          <Pressable className="mt-4" onPress={() => refetch()}>
+            <Text className="text-base text-rust">
               Couldn't load your profile — tap to retry
             </Text>
           </Pressable>
         ) : (
-          <Text className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          <Text className="mt-4 text-2xl font-bold text-ink dark:text-gray-50">
             {profile?.name ?? " "}
           </Text>
         )}
-        <Text className="mt-1 text-base text-gray-500 dark:text-gray-400">
+        <Text className="mt-1 text-base text-gray-400">
           {session?.user.email}
         </Text>
       </View>
 
-      <Text className="mb-1.5 mt-10 text-sm font-medium text-gray-700 dark:text-gray-300">
-        Appearance
+      <Text className="mb-2 mt-10 text-lg font-bold text-ink dark:text-gray-100">
+        Preferences
       </Text>
-      <View className="flex-row rounded-xl border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
-        {THEME_OPTIONS.map(({ value, label }) => {
-          const selected = preference === value;
-          return (
-            <Pressable
-              key={value}
-              className={`flex-1 items-center rounded-lg py-2 ${
-                selected ? "bg-teal-600" : ""
-              }`}
-              onPress={() => setPreference(value)}
-            >
-              <Text
-                className={`text-sm ${
-                  selected
-                    ? "font-semibold text-white"
-                    : "text-gray-700 dark:text-gray-300"
-                }`}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View className="rounded-3xl bg-white p-4 dark:bg-gray-900">
+        <Text className="mb-2 text-sm font-medium text-gray-400">
+          Appearance
+        </Text>
+        <SegmentedControl
+          options={THEME_OPTIONS}
+          value={preference}
+          onChange={setPreference}
+        />
       </View>
 
       <Pressable
-        className="mt-6 items-center rounded-xl border border-red-200 bg-white py-3.5 active:bg-red-50 dark:border-red-950 dark:bg-gray-900"
+        className="mt-6 items-center rounded-full border border-rust/30 py-4 active:bg-rust/10 dark:border-rust/50"
         onPress={confirmSignOut}
       >
-        <Text className="text-base font-semibold text-red-500">Sign out</Text>
+        <Text className="text-base font-semibold text-rust">Sign out</Text>
       </Pressable>
     </View>
   );

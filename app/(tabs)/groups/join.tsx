@@ -40,7 +40,7 @@ export default function JoinGroupScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50 px-6 pt-8 dark:bg-gray-950">
+    <View className="flex-1 bg-paper px-6 pt-8 dark:bg-gray-950">
       <FormInput
         control={control}
         name="code"
@@ -52,26 +52,26 @@ export default function JoinGroupScreen() {
       />
 
       {serverError ? (
-        <Text className="mb-3 text-center text-sm text-red-500">
+        <Text className="mb-3 text-center text-sm text-rust">
           {serverError}
         </Text>
       ) : null}
 
       <Pressable
-        className="mt-2 items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700 disabled:opacity-60"
+        className="mt-2 items-center rounded-full bg-ink py-4 active:opacity-80 disabled:opacity-60 dark:bg-white"
         onPress={handleSubmit(onSubmit)}
         disabled={joinGroup.isPending}
       >
         {joinGroup.isPending ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text className="text-base font-semibold text-white">Join group</Text>
+          <Text className="text-base font-semibold text-white dark:text-ink">Join group</Text>
         )}
       </Pressable>
 
       <Link href="/groups/scan" replace asChild>
-        <Pressable className="mt-3 items-center rounded-xl border border-teal-600 bg-white py-3.5 active:bg-teal-50 dark:bg-gray-900 dark:active:bg-gray-800">
-          <Text className="text-base font-semibold text-teal-600">
+        <Pressable className="mt-3 items-center rounded-full border border-ink/20 py-4 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-800">
+          <Text className="text-base font-semibold text-ink dark:text-gray-100">
             Scan invite QR instead
           </Text>
         </Pressable>

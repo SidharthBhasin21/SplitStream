@@ -14,6 +14,7 @@ import {
 import { z } from "zod";
 
 import { FormInput } from "@/components/FormInput";
+import { GoogleSignIn } from "@/components/ui/GoogleButton";
 import { supabase } from "@/lib/supabase";
 
 const loginSchema = z.object({
@@ -50,14 +51,14 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-gray-50 dark:bg-gray-950"
+      className="flex-1 bg-paper dark:bg-gray-950"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
         contentContainerClassName="flex-grow justify-center px-6 py-12"
         keyboardShouldPersistTaps="handled"
       >
-        <Text className="mb-1 text-center text-3xl font-bold text-teal-600">
+        <Text className="mb-1 text-center text-3xl font-bold text-ledger">
           SplitStream
         </Text>
         <Text className="mb-10 text-center text-base text-gray-500 dark:text-gray-400">
@@ -83,26 +84,28 @@ export default function LoginScreen() {
         />
 
         {serverError ? (
-          <Text className="mb-3 text-center text-sm text-red-500">
+          <Text className="mb-3 text-center text-sm text-rust">
             {serverError}
           </Text>
         ) : null}
 
         <Pressable
-          className="mt-2 items-center rounded-xl bg-teal-600 py-3.5 active:bg-teal-700 disabled:opacity-60"
+          className="mt-2 items-center rounded-full bg-ink py-4 active:opacity-80 disabled:opacity-60 dark:bg-white"
           onPress={handleSubmit(onSubmit)}
           disabled={isSubmitting}
         >
           {isSubmitting ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-base font-semibold text-white">Log in</Text>
+            <Text className="text-base font-semibold text-white dark:text-ink">Log in</Text>
           )}
         </Pressable>
 
+        <GoogleSignIn onError={setServerError} />
+
         <View className="mt-6 flex-row justify-center">
           <Text className="text-gray-500 dark:text-gray-400">Don't have an account? </Text>
-          <Link href="/signup" className="font-semibold text-teal-600">
+          <Link href="/signup" className="font-semibold text-ledger">
             Sign up
           </Link>
         </View>

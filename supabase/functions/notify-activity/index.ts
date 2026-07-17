@@ -36,6 +36,10 @@ function describe(action: string, actor: string, details: ActivityRecord["detail
       return `${actor} deleted ${what}`;
     case "member_joined":
       return `${actor} joined the group`;
+    case "settled_up":
+      return `${actor} recorded a payment${amount ? ` of ${amount}` : ""}`;
+    case "settlement_deleted":
+      return `${actor} deleted a payment${amount ? ` of ${amount}` : ""}`;
     default:
       return `${actor} updated the group`;
   }
