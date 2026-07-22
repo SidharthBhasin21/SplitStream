@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "889498982990",
+    "project_id": "splitstream-4a7f2",
+    "storage_bucket": "splitstream-4a7f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889498982990:android:455a0e81d2f6ce94e4c11f",
+        "android_client_info": {
+          "package_name": "com.sidharthbhasin.splitstream"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDScDsYE9bOxgddKtpgbH6BL9pc3HRZKU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -66,11 +66,19 @@ Deno.serve(async (req) => {
   ]);
 
   // Every member except the person who performed the action.
-  const { data: members } = await supabase
+  const { data: members, error: membersError } = await supabase
     .from("group_members")
     .select("user_id")
     .eq("group_id", record.group_id)
-    .neq("user_id", record.actor_id ?? "");
+    .neq("user_id", record.actor_id ?? "00000000-0000-0000-0000-000000000000");
+
+  // Surface query failures loudly — a silent empty list here once masked an
+  // invalid service key (pg_net stores this body in net._http_response).
+  if (membersError) {
+    return new Response(`members query failed: ${membersError.message}`, {
+      status: 500,
+    });
+  }
 
   const userIds = (members ?? []).map((m) => m.user_id);
   if (userIds.length === 0) return new Response("no recipients", { status: 200 });

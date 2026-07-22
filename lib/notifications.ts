@@ -42,44 +42,50 @@ async function registerForPush(userId: string): Promise<void> {
   const projectId = easProjectId();
   if (!projectId) return; // eas init not run yet — no-op
 
-  const Notifications = await import("expo-notifications");
+  try {
+    const Notifications = await import("expo-notifications");
 
-  // Show notifications as banners even while the app is foregrounded.
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
-
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let status = existing;
-  if (existing !== "granted") {
-    ({ status } = await Notifications.requestPermissionsAsync());
-  }
-  if (status !== "granted") return;
-
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "Group activity",
-      importance: Notifications.AndroidImportance.DEFAULT,
+    // Show notifications as banners even while the app is foregrounded.
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
     });
+
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let status = existing;
+    if (existing !== "granted") {
+      ({ status } = await Notifications.requestPermissionsAsync());
+    }
+    if (status !== "granted") return;
+
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Group activity",
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+
+    // Upsert keyed on (user_id, token): reinstalls refresh updated_at, and a
+    // device used by two accounts ends up with a row per account.
+    const { error } = await supabase.from("push_tokens").upsert({
+      user_id: userId,
+      token,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) console.warn("push token save failed:", error.message);
+  } catch (e) {
+    // Registration must never crash the app — a device without working push
+    // (denied permission, FCM hiccup) should still use everything else.
+    console.warn("push registration failed:", e instanceof Error ? e.message : e);
   }
-
-  const { data: token } = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  });
-
-  // Upsert keyed on (user_id, token): reinstalls refresh updated_at, and a
-  // device used by two accounts ends up with a row per account.
-  const { error } = await supabase.from("push_tokens").upsert({
-    user_id: userId,
-    token,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) console.warn("push token save failed:", error.message);
 }
 
 /** Mounted once from the root layout when a session exists. */
