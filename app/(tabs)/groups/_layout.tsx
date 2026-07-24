@@ -25,6 +25,10 @@ export default function GroupsLayout() {
         name="[groupId]/settle"
         options={{ presentation: "modal" }}
       />
+      <Stack.Screen
+        name="[groupId]/loan"
+        options={{ presentation: "modal" }}
+      />
       {/* [groupId] screens set their own titles once the group loads */}
     </Stack>
   );

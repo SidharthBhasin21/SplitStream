@@ -75,6 +75,17 @@ export default function SettleScreen() {
     return Math.round(Math.min(Math.abs(myNet), Math.abs(theirNet)) * 100) / 100;
   }, [selected, myNet, theirNet]);
 
+  // The suggestion settles things in exactly ONE direction: the debtor pays
+  // the creditor. When it exists, signs oppose, so if I'm in the red the
+  // settling direction is me → them; otherwise them → me. In that case the
+  // direction is LOCKED — a payment the other way widens the gap, and cash
+  // handovers between members are deliberately not this screen's job. The
+  // toggle only appears when there's no settling direction (both owe, both
+  // owed, or someone's at zero).
+  const settlingDirection: Direction | null =
+    suggested === null ? null : myNet < 0 ? "i_paid" : "they_paid";
+  const effectiveDirection = settlingDirection ?? direction;
+
   const pickMember = (memberId: string) => {
     setSelected(memberId);
     const net = balances[memberId] ?? 0;
@@ -103,8 +114,8 @@ export default function SettleScreen() {
     // Fire-and-forget, same as add-expense: the optimistic row in the
     // transactions list is the feedback; failures roll back + toast.
     addSettlement.mutate({
-      from_user: direction === "i_paid" ? userId : selected,
-      to_user: direction === "i_paid" ? selected : userId,
+      from_user: effectiveDirection === "i_paid" ? userId : selected,
+      to_user: effectiveDirection === "i_paid" ? selected : userId,
       amount: Math.round(value * 100) / 100,
     });
     router.back();
@@ -174,14 +185,26 @@ export default function SettleScreen() {
           <Text className="mb-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
             Direction
           </Text>
-          <SegmentedControl
-            options={[
-              { value: "i_paid" as Direction, label: `You paid ${firstName}` },
-              { value: "they_paid" as Direction, label: `${firstName} paid you` },
-            ]}
-            value={direction}
-            onChange={setDirection}
-          />
+          {settlingDirection !== null ? (
+            // Unambiguous: debtor pays creditor. Shown as a fact, not a
+            // choice — the reverse direction can't settle anything.
+            <View className="rounded-2xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-800 dark:bg-gray-900">
+              <Text className="text-base font-semibold text-ink dark:text-gray-100">
+                {settlingDirection === "i_paid"
+                  ? `You pay ${firstName}`
+                  : `${firstName} pays you`}
+              </Text>
+            </View>
+          ) : (
+            <SegmentedControl
+              options={[
+                { value: "i_paid" as Direction, label: `You paid ${firstName}` },
+                { value: "they_paid" as Direction, label: `${firstName} paid you` },
+              ]}
+              value={direction}
+              onChange={setDirection}
+            />
+          )}
 
           <Text className="mb-1.5 mt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
             Amount ({currencyMeta(currency).symbol})
@@ -223,6 +246,17 @@ export default function SettleScreen() {
           Pick who you're settling with to continue.
         </Text>
       )}
+
+      {/* Cash handovers are deliberately NOT settle-ups (free direction) —
+          they live on their own screen. Same replace pattern as join/scan. */}
+      <Pressable
+        className="mt-5 items-center py-2"
+        onPress={() => router.replace(`/groups/${groupId}/loan`)}
+      >
+        <Text className="text-sm font-semibold text-ledger">
+          Handed over cash instead? Record a loan
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
