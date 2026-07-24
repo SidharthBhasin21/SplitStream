@@ -14,6 +14,8 @@ export interface Group {
   id: string;
   name: string;
   invite_code: string; // 6-character shareable code
+  /** v1.3 — ISO 4217 code (e.g. "INR"); see lib/currency.ts CURRENCIES. */
+  currency: string;
   created_by: string | null;
   created_at: string;
 }
@@ -36,6 +38,9 @@ export interface Expense {
   split_type: SplitType;
   /** v1.1 — one of lib/categories.ts CATEGORIES; 'other' for legacy rows. */
   category: string;
+  /** v1.4 — participant user ids this expense is split between. Null (or
+   *  empty) means every current group member — see lib/balances.ts. */
+  split_among: string[] | null;
   /** Incremented on every update — the basis for conflict detection (PRD 5.4). */
   version: number;
   created_by: string | null;

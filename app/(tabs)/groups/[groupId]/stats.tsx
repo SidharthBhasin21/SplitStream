@@ -4,9 +4,10 @@ import { useMemo } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import { EmptyState } from "@/components/ui/EmptyState";
-import { formatINR } from "@/lib/balances";
 import { CATEGORY_META } from "@/lib/categories";
+import { formatMoney } from "@/lib/currency";
 import { useExpenses } from "@/lib/expenseSync";
+import { useGroup } from "@/lib/groups";
 import { spendByCategory, spendByMonth } from "@/lib/stats";
 
 /**
@@ -17,8 +18,10 @@ import { spendByCategory, spendByMonth } from "@/lib/stats";
 
 function CategoryBars({
   data,
+  currency,
 }: {
   data: ReturnType<typeof spendByCategory>;
+  currency: string;
 }) {
   const max = data[0]?.total ?? 0;
   return (
@@ -42,7 +45,7 @@ function CategoryBars({
                 </Text>
               </View>
               <Text className="text-sm font-bold text-ink dark:text-gray-100">
-                {formatINR(total)}
+                {formatMoney(total, currency)}
               </Text>
             </View>
             <View className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -99,7 +102,9 @@ function MonthBars({ data }: { data: ReturnType<typeof spendByMonth> }) {
 
 export default function StatsScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const { data: group } = useGroup(groupId);
   const { data: expenses, isPending } = useExpenses(groupId);
+  const currency = group?.currency ?? "INR";
 
   const byCategory = useMemo(() => spendByCategory(expenses ?? []), [expenses]);
   const byMonth = useMemo(() => spendByMonth(expenses ?? []), [expenses]);
@@ -127,10 +132,10 @@ export default function StatsScreen() {
               Total group spend
             </Text>
             <Text className="mt-1 text-4xl font-bold text-ink dark:text-gray-50">
-              {formatINR(total)}
+              {formatMoney(total, currency)}
             </Text>
           </View>
-          <CategoryBars data={byCategory} />
+          <CategoryBars data={byCategory} currency={currency} />
           <MonthBars data={byMonth} />
           <View className="h-8" />
         </>

@@ -24,9 +24,27 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-function describe(action: string, actor: string, details: ActivityRecord["details"]): string {
+// Small standalone symbol table (mirrors lib/currency.ts CURRENCIES) — Deno
+// Edge Functions can't import from the app's lib/ directory, so this is
+// deliberately duplicated rather than shared.
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: "₹", USD: "$", EUR: "€", GBP: "£", AUD: "A$", CAD: "C$",
+  JPY: "¥", CNY: "¥", SGD: "S$", AED: "د.إ", THB: "฿", NPR: "₨",
+};
+
+function describe(
+  action: string,
+  actor: string,
+  details: ActivityRecord["details"],
+  currency: string,
+): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? "₹";
+  const decimals = currency === "JPY" ? 0 : 2;
   const what = details.description ?? "an expense";
-  const amount = details.amount !== undefined ? `₹${details.amount.toFixed(2)}` : "";
+  const amount =
+    details.amount !== undefined
+      ? `${symbol}${details.amount.toFixed(decimals)}`
+      : "";
   switch (action) {
     case "expense_added":
       return `${actor} added ${amount} for ${what}`;
@@ -57,9 +75,9 @@ Deno.serve(async (req) => {
   }
   const record = payload.record as ActivityRecord;
 
-  // Group name + actor name for the notification copy.
+  // Group name + currency + actor name for the notification copy.
   const [{ data: group }, { data: actor }] = await Promise.all([
-    supabase.from("groups").select("name").eq("id", record.group_id).single(),
+    supabase.from("groups").select("name, currency").eq("id", record.group_id).single(),
     record.actor_id
       ? supabase.from("profiles").select("name").eq("id", record.actor_id).single()
       : Promise.resolve({ data: null }),
@@ -90,7 +108,12 @@ Deno.serve(async (req) => {
 
   if (!tokens?.length) return new Response("no tokens", { status: 200 });
 
-  const body = describe(record.action, actor?.name ?? "Someone", record.details);
+  const body = describe(
+    record.action,
+    actor?.name ?? "Someone",
+    record.details,
+    group?.currency ?? "INR",
+  );
   const messages = tokens.map(({ token }) => ({
     to: token,
     title: group?.name ?? "SplitStream",

@@ -111,7 +111,7 @@ export function TabBar({ state, navigation }: TabBarProps) {
           <FontAwesome name="plus" size={22} color="#ffffff" />
         </Pressable>
 
-        {actionItem("qrcode", "Join", () => router.push("/groups/join"))}
+        {actionItem("qrcode", "Join", () => router.push("/groups/scan"))}
         {tabItem("profile", "user", "Profile")}
       </View>
     </View>

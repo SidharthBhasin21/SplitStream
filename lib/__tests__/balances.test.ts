@@ -1,11 +1,15 @@
-import { computeBalances, computeMyNet, formatINR } from "../balances";
+import { computeBalances, computeMyNet } from "../balances";
 
 const A = "user-a";
 const B = "user-b";
 const C = "user-c";
 
-function expense(amount: number, paid_by: string | null) {
-  return { amount, paid_by };
+function expense(
+  amount: number,
+  paid_by: string | null,
+  split_among?: string[] | null,
+) {
+  return { amount, paid_by, split_among };
 }
 
 describe("computeBalances", () => {
@@ -74,6 +78,47 @@ describe("computeBalances", () => {
   it("treats a member with no expenses as owing their share", () => {
     const balances = computeBalances([expense(50, A)], [A, B]);
     expect(balances[B]).toBe(-25);
+  });
+});
+
+describe("computeBalances with partial splits (v1.4)", () => {
+  it("only debits the named participants, not the whole group", () => {
+    // A pays 90 for dinner with just A+B (C wasn't there): 45 each.
+    const balances = computeBalances(
+      [expense(90, A, [A, B])],
+      [A, B, C],
+    );
+    expect(balances).toEqual({ [A]: 45, [B]: -45, [C]: 0 });
+  });
+
+  it("treats a null split_among the same as everyone (backward compatible)", () => {
+    expect(computeBalances([expense(300, A, null)], [A, B, C])).toEqual(
+      computeBalances([expense(300, A)], [A, B, C]),
+    );
+  });
+
+  it("treats an empty split_among array the same as everyone", () => {
+    expect(computeBalances([expense(300, A, [])], [A, B, C])).toEqual(
+      computeBalances([expense(300, A)], [A, B, C]),
+    );
+  });
+
+  it("still credits the payer in full even if they didn't participate", () => {
+    // A fronts the bill for B+C only — A gets the whole 100 back.
+    const balances = computeBalances([expense(100, A, [B, C])], [A, B, C]);
+    expect(balances).toEqual({ [A]: 100, [B]: -50, [C]: -50 });
+  });
+
+  it("keeps exact zero-sum across mixed full and partial splits", () => {
+    const balances = computeBalances(
+      [expense(300, A), expense(90, B, [B, C]), expense(11.11, C, [A, C])],
+      [A, B, C],
+    );
+    const totalPaise = Object.values(balances).reduce(
+      (s, v) => s + Math.round(v * 100),
+      0,
+    );
+    expect(totalPaise).toBe(0);
   });
 });
 
@@ -151,15 +196,19 @@ describe("computeMyNet", () => {
     // …while a settlement purely between B and C doesn't touch my net.
     expect(computeMyNet([], 3, A, [settlement(40, B, C)])).toBe(0);
   });
-});
 
-describe("formatINR", () => {
-  it("formats with two decimals and Indian grouping", () => {
-    expect(formatINR(1234567.5)).toBe("₹12,34,567.50");
-    expect(formatINR(0)).toBe("₹0.00");
+  it("ignores an expense I wasn't part of (v1.4 partial split)", () => {
+    // B pays 90 for a dinner with just B+C — doesn't touch my balance at all.
+    expect(computeMyNet([expense(90, B, [B, C])], 3, A)).toBe(0);
   });
 
-  it("uses the absolute value (sign is conveyed by the UI label)", () => {
-    expect(formatINR(-99.9)).toBe("₹99.90");
+  it("still credits me in full as payer even when I opted out of the split", () => {
+    expect(computeMyNet([expense(100, A, [B, C])], 3, A)).toBe(100);
+  });
+
+  it("matches computeBalances for a partial split", () => {
+    const expenses = [expense(90, A, [A, B])];
+    const viaFull = computeBalances(expenses, [A, B, C])[A];
+    expect(computeMyNet(expenses, 3, A)).toBe(viaFull);
   });
 });

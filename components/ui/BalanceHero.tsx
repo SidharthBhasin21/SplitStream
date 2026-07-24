@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon } from "react-native-svg";
 
-import { formatINR } from "@/lib/balances";
+import { formatMoney } from "@/lib/currency";
 import { softShadow, softShadowSm } from "./Card";
 
 /** Subtle geometric facet texture over the navy hero card. */
@@ -42,12 +42,15 @@ export interface HeroAction {
 export function BalanceHero({
   label,
   amount,
+  currency = "INR",
   subtitle,
   actions,
   topBar,
 }: {
   label: string;
   amount: number;
+  /** ISO 4217 code for the group this balance belongs to (v1.3). */
+  currency?: string;
   subtitle?: string;
   actions: HeroAction[];
   /** Rendered on the paper background above the floating card. */
@@ -69,7 +72,7 @@ export function BalanceHero({
           <Text className="text-sm text-white/60">{label}</Text>
           <Text className="mt-1 text-5xl font-bold text-white">
             {sign}
-            {formatINR(amount)}
+            {formatMoney(amount, currency)}
           </Text>
           {subtitle ? (
             <Text className="mt-2 text-sm text-white/60">{subtitle}</Text>

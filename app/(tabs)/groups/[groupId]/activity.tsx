@@ -10,6 +10,7 @@ import {
   useActivityRealtime,
   type ActivityWithActor,
 } from "@/lib/activity";
+import { useGroup } from "@/lib/groups";
 
 /** Icon + pastel tint per action, matching the category avatar language. */
 const ACTION_STYLE: Record<
@@ -24,7 +25,13 @@ const ACTION_STYLE: Record<
   settlement_deleted: { icon: "handshake-o", bg: "#F5DDD8", fg: "#B54A3A" },
 };
 
-function ActivityRow({ entry }: { entry: ActivityWithActor }) {
+function ActivityRow({
+  entry,
+  currency,
+}: {
+  entry: ActivityWithActor;
+  currency: string;
+}) {
   const style = ACTION_STYLE[entry.action];
   const when = new Date(entry.created_at).toLocaleString("en-IN", {
     day: "numeric",
@@ -36,7 +43,7 @@ function ActivityRow({ entry }: { entry: ActivityWithActor }) {
   return (
     <ListRow
       avatar={<CircleAvatar icon={style.icon} bg={style.bg} fg={style.fg} />}
-      title={describeActivity(entry)}
+      title={describeActivity(entry, currency)}
       subtitle={when}
     />
   );
@@ -45,6 +52,7 @@ function ActivityRow({ entry }: { entry: ActivityWithActor }) {
 /** Append-only per-group feed (v1.1) — live via realtime while on screen. */
 export default function ActivityScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const { data: group } = useGroup(groupId);
   const { data: entries, isPending, error, refetch } = useActivity(groupId);
   useActivityRealtime(groupId);
 
@@ -67,7 +75,9 @@ export default function ActivityScreen() {
         <FlatList
           data={entries}
           keyExtractor={(e) => e.id}
-          renderItem={({ item }) => <ActivityRow entry={item} />}
+          renderItem={({ item }) => (
+            <ActivityRow entry={item} currency={group?.currency ?? "INR"} />
+          )}
           ListEmptyComponent={
             <EmptyState
               icon="history"

@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
+import { CURRENCIES } from "@/lib/currency";
+import { useCurrencyStore } from "@/lib/currencyStore";
 import { supabase } from "@/lib/supabase";
 import { useThemeStore, type ThemePreference } from "@/lib/themeStore";
 import type { Profile } from "@/lib/types";
@@ -30,6 +32,7 @@ export default function ProfileScreen() {
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id;
   const { preference, setPreference } = useThemeStore();
+  const { homeCurrency, setHomeCurrency } = useCurrencyStore();
 
   const {
     data: profile,
@@ -103,6 +106,51 @@ export default function ProfileScreen() {
           value={preference}
           onChange={setPreference}
         />
+      </View>
+
+      <Text className="mb-2 mt-4 text-lg font-bold text-ink dark:text-gray-100">
+        Home currency
+      </Text>
+      <View className="rounded-3xl bg-white p-4 dark:bg-gray-900">
+        <Text className="mb-3 text-sm text-gray-400">
+          Used to convert your cross-group balance total on the Groups tab.
+          Each group still tracks expenses in its own currency.
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
+          {CURRENCIES.map((c) => {
+            const selected = homeCurrency === c.code;
+            return (
+              <Pressable
+                // Remount on selection flip — NativeWind can't upgrade a
+                // mounted component's style features.
+                key={`${c.code}-${selected}`}
+                className={`flex-row items-center rounded-full border px-3 py-2 ${
+                  selected
+                    ? "border-ledger bg-ledger"
+                    : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+                }`}
+                onPress={() => setHomeCurrency(c.code)}
+              >
+                <Text
+                  className={`text-sm font-semibold ${
+                    selected ? "text-white" : "text-ink dark:text-gray-100"
+                  }`}
+                >
+                  {c.symbol}
+                </Text>
+                <Text
+                  className={`ml-1.5 text-sm ${
+                    selected
+                      ? "font-semibold text-white"
+                      : "text-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {c.code}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <Pressable

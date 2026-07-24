@@ -26,7 +26,10 @@ export const groupKeys = {
 };
 
 export interface GroupSummaries {
-  expenses: Record<string, Pick<Expense, "amount" | "paid_by">[]>;
+  expenses: Record<
+    string,
+    Pick<Expense, "amount" | "paid_by" | "split_among">[]
+  >;
   settlements: Record<
     string,
     Pick<Settlement, "amount" | "from_user" | "to_user">[]
@@ -44,7 +47,9 @@ export function useGroupExpenseSummaries() {
     queryKey: ["group-expense-summaries"],
     queryFn: async (): Promise<GroupSummaries> => {
       const [expensesRes, settlementsRes] = await Promise.all([
-        supabase.from("expenses").select("group_id, amount, paid_by"),
+        supabase
+          .from("expenses")
+          .select("group_id, amount, paid_by, split_among"),
         supabase.from("settlements").select("group_id, amount, from_user, to_user"),
       ]);
       if (expensesRes.error) throw expensesRes.error;
@@ -109,6 +114,13 @@ export function useGroupMembers(groupId: string) {
   });
 }
 
+export interface CreateGroupInput {
+  name: string;
+  /** ISO 4217 code — see lib/currency.ts CURRENCIES. Defaults to INR
+   *  server-side if omitted. */
+  currency: string;
+}
+
 export function useCreateGroup() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -116,15 +128,41 @@ export function useCreateGroup() {
     // await their result, and (unlike expenses) there's no optimistic row
     // to show while a paused mutation waits for reconnection.
     networkMode: "always",
-    mutationFn: async (name: string): Promise<Group> => {
+    mutationFn: async ({ name, currency }: CreateGroupInput): Promise<Group> => {
       const { data, error } = await supabase.rpc("create_group", {
         group_name: name,
+        group_currency: currency,
       });
       if (error) throw error;
       return data as Group;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: groupKeys.list });
+    },
+  });
+}
+
+/**
+ * Delete a group (v1.5) — owner-only, enforced server-side by the
+ * delete_group RPC (see supabase/phase11.sql). The DB cascade removes all
+ * expenses, settlements, members and activity in one shot; here we just drop
+ * the now-dead group from the list + summary caches.
+ */
+export function useDeleteGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    // Fail fast when offline (same rationale as create/join): the caller
+    // awaits the result to navigate away, and there's no optimistic UI here.
+    networkMode: "always",
+    mutationFn: async (groupId: string): Promise<void> => {
+      const { error } = await supabase.rpc("delete_group", { gid: groupId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.list });
+      queryClient.invalidateQueries({
+        queryKey: ["group-expense-summaries"],
+      });
     },
   });
 }

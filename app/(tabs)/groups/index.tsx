@@ -11,7 +11,10 @@ import { AmountCell } from "@/components/ui/ListRow";
 import { PressableScale } from "@/components/ui/PressableScale";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
-import { computeMyNet, formatINR } from "@/lib/balances";
+import { computeMyNet } from "@/lib/balances";
+import { formatMoney } from "@/lib/currency";
+import { useCurrencyStore } from "@/lib/currencyStore";
+import { convertToBase, useExchangeRates } from "@/lib/exchangeRates";
 import {
   useGroupExpenseSummaries,
   useGroups,
@@ -46,6 +49,7 @@ function GroupCard({
   index: number;
   onPress: () => void;
 }) {
+  const currency = group.currency;
   const tint = entityTint(group.id);
   const memberCount = group.group_members[0]?.count ?? 0;
   return (
@@ -70,7 +74,7 @@ function GroupCard({
               {memberCount} {memberCount === 1 ? "member" : "members"}
             </Text>
           </View>
-          <AmountCell amount={net} />
+          <AmountCell amount={net} currency={currency} />
         </Card>
       </PressableScale>
     </Animated.View>
@@ -84,6 +88,12 @@ export default function GroupsScreen() {
   const { data: groups, isPending, error, refetch, isRefetching } = useGroups();
   const { data: summaries } = useGroupExpenseSummaries();
   const [filter, setFilter] = useState<Filter>("overall");
+
+  // Cross-group total needs conversion — every OTHER amount in the app
+  // (group cards, hero, settle-up) stays in its own group's currency and
+  // never touches an exchange rate.
+  const homeCurrency = useCurrencyStore((s) => s.homeCurrency);
+  const { data: rates } = useExchangeRates(homeCurrency);
 
   // Live net per group (my perspective), derived from the summary query —
   // expenses split equally, settlements shifted pairwise (v1.2).
@@ -101,10 +111,28 @@ export default function GroupsScreen() {
     [groups, summaries, userId],
   );
 
-  const total = useMemo(
-    () => Math.round(withNet.reduce((sum, g) => sum + g.net, 0) * 100) / 100,
-    [withNet],
-  );
+  // Convert each group's net into the home currency before summing. A
+  // group whose currency we can't convert (rates still loading, or a
+  // currency the provider doesn't cover) is excluded from the total rather
+  // than silently treated as 1:1 — `unconverted` flags that to the UI.
+  const { total, unconverted } = useMemo(() => {
+    let sum = 0;
+    let skipped = false;
+    for (const { group, net } of withNet) {
+      if (net === 0) continue;
+      if (group.currency === homeCurrency) {
+        sum += net;
+        continue;
+      }
+      const converted = convertToBase(net, group.currency, rates);
+      if (converted === null) {
+        skipped = true;
+        continue;
+      }
+      sum += converted;
+    }
+    return { total: Math.round(sum * 100) / 100, unconverted: skipped };
+  }, [withNet, homeCurrency, rates]);
 
   const visible = useMemo(() => {
     if (filter === "iowe") return withNet.filter((g) => g.net < 0);
@@ -142,8 +170,13 @@ export default function GroupsScreen() {
               }`}
             >
               {total < 0 ? "-" : ""}
-              {formatINR(total)}
+              {formatMoney(total, homeCurrency)}
             </Text>
+            {unconverted ? (
+              <Text className="mt-1 text-xs text-gray-400">
+                Some balances aren't converted yet — check your connection.
+              </Text>
+            ) : null}
 
             <View className="mb-5 mt-5">
               <SegmentedControl
