@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 
 import { useAuthStore } from "./authStore";
 import { supabase } from "./supabase";
@@ -179,6 +179,9 @@ export interface AddExpenseInput {
   amount: number;
   paid_by: string;
   category: string;
+  /** v1.4 — participant user ids; the whole current member list means the
+   *  same as before partial splits existed. */
+  split_among: string[];
 }
 
 export function useAddExpense(groupId: string) {
@@ -212,6 +215,7 @@ export function useAddExpense(groupId: string) {
         amount: input.amount,
         paid_by: input.paid_by,
         category: input.category,
+        split_among: input.split_among,
         split_type: "equal",
         version: 1,
         created_by: userId ?? null,
@@ -242,7 +246,10 @@ export function useAddExpense(groupId: string) {
 export interface UpdateExpenseInput {
   /** The cached row being edited — carries the id and the version we saw. */
   expense: CachedExpense;
-  patch: Pick<Expense, "description" | "amount" | "paid_by" | "category">;
+  patch: Pick<
+    Expense,
+    "description" | "amount" | "paid_by" | "category" | "split_among"
+  >;
 }
 
 export function useUpdateExpense(groupId: string) {
@@ -385,10 +392,17 @@ function applyIncomingRow(
  */
 export function useGroupRealtime(groupId: string) {
   const queryClient = useQueryClient();
+  // Unique per mounted screen: two instances for the same group (e.g. after
+  // scanning the QR of a group you're already viewing → router.replace to
+  // the same route) briefly coexist. A shared topic like `group:X` would
+  // then make the second subscribe throw "cannot add postgres_changes
+  // callbacks ... after subscribe()". The postgres_changes filter below is
+  // what scopes rows to the group — the topic name is just a channel label.
+  const instanceId = useId();
 
   useEffect(() => {
     const channel = supabase
-      .channel(`group:${groupId}`)
+      .channel(`group:${groupId}:${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -451,7 +465,7 @@ export function useGroupRealtime(groupId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId, queryClient]);
+  }, [groupId, queryClient, instanceId]);
 }
 
 // ── Settlements (v1.2) ───────────────────────────────────────────────────

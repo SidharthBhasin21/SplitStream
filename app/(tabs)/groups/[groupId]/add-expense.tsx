@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { z } from "zod";
@@ -15,13 +15,14 @@ import {
   CATEGORY_META,
   type Category,
 } from "@/lib/categories";
+import { currencyMeta } from "@/lib/currency";
 import {
   useAddExpense,
   useDeleteExpense,
   useExpenses,
   useUpdateExpense,
 } from "@/lib/expenseSync";
-import { useGroupMembers } from "@/lib/groups";
+import { useGroup, useGroupMembers } from "@/lib/groups";
 
 const expenseSchema = z.object({
   description: z.string().trim().min(1, "What was this expense for?"),
@@ -46,6 +47,7 @@ export default function AddExpenseScreen() {
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user.id);
 
+  const { data: group } = useGroup(groupId);
   const { data: members } = useGroupMembers(groupId);
   const { data: expenses } = useExpenses(groupId);
   // Editing reuses this screen: the row comes from the already-loaded cache.
@@ -63,6 +65,33 @@ export default function AddExpenseScreen() {
   const [category, setCategory] = useState<Category>(
     existing ? asCategory(existing.category) : "other",
   );
+
+  // Who this expense is split between (v1.4). Starts empty and gets filled
+  // once members load: existing's own list when editing an expense that
+  // already narrowed its split, otherwise everyone currently in the group
+  // (matches a null split_among, which means "everyone").
+  const [splitAmong, setSplitAmong] = useState<string[]>(
+    existing?.split_among && existing.split_among.length > 0
+      ? existing.split_among
+      : [],
+  );
+  useEffect(() => {
+    if (splitAmong.length === 0 && members && members.length > 0) {
+      setSplitAmong(members.map((m) => m.user_id));
+    }
+    // Only meant to seed the default once members arrive — not a full sync.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members]);
+
+  const toggleParticipant = (memberId: string) => {
+    setSplitAmong((prev) =>
+      prev.includes(memberId)
+        ? prev.length > 1
+          ? prev.filter((id) => id !== memberId)
+          : prev // keep at least one participant
+        : [...prev, memberId],
+    );
+  };
 
   const { control, handleSubmit } = useForm<ExpenseForm>({
     resolver: zodResolver(expenseSchema),
@@ -88,6 +117,7 @@ export default function AddExpenseScreen() {
       amount: Math.round(Number(amount) * 100) / 100,
       paid_by: paidBy,
       category,
+      split_among: splitAmong,
     };
     if (existing) {
       updateExpense.mutate({ expense: existing, patch });
@@ -114,6 +144,7 @@ export default function AddExpenseScreen() {
   return (
     <ScrollView
       className="flex-1 bg-paper px-6 pt-6 dark:bg-gray-950"
+      contentContainerClassName="pb-40"
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen
@@ -130,7 +161,7 @@ export default function AddExpenseScreen() {
       <FormInput
         control={control}
         name="amount"
-        label="Amount (₹)"
+        label={`Amount (${currencyMeta(group?.currency).symbol})`}
         placeholder="0.00"
         keyboardType="decimal-pad"
       />
@@ -194,8 +225,35 @@ export default function AddExpenseScreen() {
         ))}
       </View>
 
+      <Text className="mb-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
+        Split between
+      </Text>
+      <View className="mb-1.5 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+        {(members ?? []).map((m, i) => {
+          const checked = splitAmong.includes(m.user_id);
+          return (
+            <Pressable
+              key={m.user_id}
+              className={`flex-row items-center justify-between px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800 ${
+                i > 0 ? "border-t border-gray-100 dark:border-gray-800" : ""
+              }`}
+              onPress={() => toggleParticipant(m.user_id)}
+            >
+              <Text className="text-base text-ink dark:text-gray-100">
+                {m.user_id === userId ? "You" : m.profiles.name}
+              </Text>
+              <FontAwesome
+                name={checked ? "check-square" : "square-o"}
+                size={18}
+                color={checked ? "#2F5D50" : "#9ca3af"}
+              />
+            </Pressable>
+          );
+        })}
+      </View>
       <Text className="mb-4 text-sm text-gray-400 dark:text-gray-500">
-        Split equally between all {members?.length ?? "…"} members
+        Split equally between {splitAmong.length} of {members?.length ?? "…"}{" "}
+        members
       </Text>
 
       <Pressable

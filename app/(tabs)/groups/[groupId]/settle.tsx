@@ -6,13 +6,14 @@ import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
 import { AmountCell, ListRow } from "@/components/ui/ListRow";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
-import { computeBalances, formatINR } from "@/lib/balances";
+import { computeBalances } from "@/lib/balances";
+import { currencyMeta, formatMoney } from "@/lib/currency";
 import {
   useAddSettlement,
   useExpenses,
   useSettlements,
 } from "@/lib/expenseSync";
-import { useGroupMembers } from "@/lib/groups";
+import { useGroup, useGroupMembers } from "@/lib/groups";
 
 type Direction = "i_paid" | "they_paid";
 
@@ -35,6 +36,7 @@ export default function SettleScreen() {
   const router = useRouter();
   const userId = useAuthStore((s) => s.session?.user.id);
 
+  const { data: group } = useGroup(groupId);
   const { data: members } = useGroupMembers(groupId);
   const { data: expenses } = useExpenses(groupId);
   const { data: settlements } = useSettlements(groupId);
@@ -109,10 +111,12 @@ export default function SettleScreen() {
   };
 
   const firstName = selectedMember?.profiles.name.split(/\s+/)[0] ?? "them";
+  const currency = group?.currency ?? "INR";
 
   return (
     <ScrollView
       className="flex-1 bg-paper px-6 pt-6 dark:bg-gray-950"
+      contentContainerClassName="pb-40"
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: "Settle up" }} />
@@ -148,6 +152,7 @@ export default function SettleScreen() {
                   // not with AmountCell's default first-person labels.
                   <AmountCell
                     amount={net}
+                    currency={currency}
                     topLine={
                       net < 0 ? "owes:" : net > 0 ? "gets back:" : undefined
                     }
@@ -179,7 +184,7 @@ export default function SettleScreen() {
           />
 
           <Text className="mb-1.5 mt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
-            Amount (₹)
+            Amount ({currencyMeta(currency).symbol})
           </Text>
           <TextInput
             className={`rounded-2xl border bg-white px-4 py-3.5 text-base text-ink dark:bg-gray-900 dark:text-gray-100 ${
@@ -199,8 +204,8 @@ export default function SettleScreen() {
           ) : null}
           {suggested !== null ? (
             <Text className="mt-1.5 text-sm text-gray-400">
-              {formatINR(suggested)} settles you up — enter less for a partial
-              payment.
+              {formatMoney(suggested, currency)} settles you up — enter less
+              for a partial payment.
             </Text>
           ) : null}
 
@@ -218,7 +223,6 @@ export default function SettleScreen() {
           Pick who you're settling with to continue.
         </Text>
       )}
-      <View className="h-10" />
     </ScrollView>
   );
 }

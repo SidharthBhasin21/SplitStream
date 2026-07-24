@@ -42,13 +42,14 @@ function ActivityRow({
     minute: "2-digit",
   });
   const group = entry.groups?.name;
+  const currency = entry.groups?.currency ?? "INR";
 
   return (
     <PressableScale className="mb-3" onPress={onPress}>
       <Card shadow="sm" className="px-4">
         <ListRow
           avatar={<CircleAvatar icon={style.icon} bg={style.bg} fg={style.fg} />}
-          title={describeActivity(entry)}
+          title={describeActivity(entry, currency)}
           subtitle={group ? `${group} · ${when}` : when}
         />
       </Card>

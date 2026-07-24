@@ -1,7 +1,8 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useJoinGroup } from "@/lib/groups";
 import { parseInviteCode } from "@/lib/invites";
@@ -12,6 +13,7 @@ import { useToastStore } from "@/lib/toastStore";
  *  same join flow as typing the code. */
 export default function ScanScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const joinGroup = useJoinGroup();
   const [permission, requestPermission] = useCameraPermissions();
   const [badScan, setBadScan] = useState(false);
@@ -64,26 +66,52 @@ export default function ScanScreen() {
             {permission.canAskAgain ? "Allow camera" : "Open settings"}
           </Text>
         </Pressable>
+        {/* Escape hatch: no camera? Join by typing the code instead. */}
+        <Pressable
+          className="mt-4 items-center px-8 py-3"
+          onPress={() => router.replace("/groups/join")}
+        >
+          <Text className="text-base font-semibold text-ledger">
+            Enter code instead
+          </Text>
+        </Pressable>
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-black">
+      {/* NativeWind's className isn't wired into CameraView (a third-party
+          native component), so it needs a real style to actually fill the
+          screen — with only a className the preview stays zero-sized (black). */}
       <CameraView
-        className="flex-1"
+        style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
         onBarcodeScanned={onBarcodeScanned}
       />
-      <View className="absolute bottom-12 left-6 right-6 items-center">
-        <Text className="rounded-xl bg-gray-900/80 px-4 py-3 text-center text-sm text-white">
+      {/* Lift the overlay clear of the floating tab bar (which renders over
+          this modal): its bar is ~72px tall sitting at insets.bottom + 10. */}
+      <View
+        className="absolute left-6 right-6 items-center"
+        style={{ bottom: insets.bottom + 96 }}
+      >
+        <Text className="mb-4 rounded-xl bg-gray-900/80 px-4 py-3 text-center text-sm text-white">
           {joinGroup.isPending
             ? "Joining group…"
             : badScan
               ? "That QR isn't a SplitStream invite — try another"
               : "Point the camera at a group's invite QR"}
         </Text>
+        {/* Primary flow is scanning; typing the code is the fallback. */}
+        <Pressable
+          className="w-full items-center rounded-full bg-white py-4 active:opacity-80"
+          onPress={() => router.replace("/groups/join")}
+        >
+          <Text className="text-base font-semibold text-ink">
+            Enter code instead
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

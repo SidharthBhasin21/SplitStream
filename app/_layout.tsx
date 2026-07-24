@@ -12,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { colorScheme as nativewindColorScheme, useColorScheme } from "nativewind";
 import { useEffect } from "react";
 import { Appearance } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { Toast } from "@/components/Toast";
@@ -103,25 +104,29 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider
-        value={colorScheme === "dark" ? DarkNavTheme : LightNavTheme}
-      >
-        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-        <Stack screenOptions={{ headerShown: false }}>
-          {/* Route guard: signed-in users get the app tabs, everyone else the
-              auth flow. Expo Router redirects automatically when `session`
-              changes, so login/signup/logout never navigate manually. */}
-          <Stack.Protected guard={!!session}>
-            <Stack.Screen name="(tabs)" />
-          </Stack.Protected>
-          <Stack.Protected guard={!session}>
-            <Stack.Screen name="(auth)" />
-          </Stack.Protected>
-        </Stack>
-        <Toast />
-        <OfflineBanner />
-      </ThemeProvider>
-    </QueryClientProvider>
+    // Required root for react-native-gesture-handler (swipe-to-delete on
+    // transaction rows) — must wrap everything that uses its gestures.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkNavTheme : LightNavTheme}
+        >
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+          <Stack screenOptions={{ headerShown: false }}>
+            {/* Route guard: signed-in users get the app tabs, everyone else the
+                auth flow. Expo Router redirects automatically when `session`
+                changes, so login/signup/logout never navigate manually. */}
+            <Stack.Protected guard={!!session}>
+              <Stack.Screen name="(tabs)" />
+            </Stack.Protected>
+            <Stack.Protected guard={!session}>
+              <Stack.Screen name="(auth)" />
+            </Stack.Protected>
+          </Stack>
+          <Toast />
+          <OfflineBanner />
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

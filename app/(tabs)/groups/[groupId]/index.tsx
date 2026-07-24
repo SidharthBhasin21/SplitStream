@@ -20,10 +20,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
 import { AmountCell, ListRow } from "@/components/ui/ListRow";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { SwipeToDelete } from "@/components/ui/SwipeToDelete";
 import { useAuthStore } from "@/lib/authStore";
-import { computeBalances, formatINR } from "@/lib/balances";
+import { computeBalances } from "@/lib/balances";
 import { asCategory, CATEGORY_META } from "@/lib/categories";
+import { formatMoney } from "@/lib/currency";
 import {
+  useDeleteExpense,
   useDeleteSettlement,
   useExpenses,
   useGroupRealtime,
@@ -48,10 +51,12 @@ const FILTERS: { value: Filter; label: string }[] = [
 function MemberBalanceRow({
   name,
   amount,
+  currency,
   isSelf,
 }: {
   name: string;
   amount: number;
+  currency: string;
   isSelf: boolean;
 }) {
   const label = amount > 0 ? "gets back" : amount < 0 ? "owes" : "settled up";
@@ -64,7 +69,7 @@ function MemberBalanceRow({
       </Text>
       <Text className={`text-base font-semibold ${color}`}>
         {label}
-        {amount !== 0 ? ` ${formatINR(amount)}` : ""}
+        {amount !== 0 ? ` ${formatMoney(amount, currency)}` : ""}
       </Text>
     </View>
   );
@@ -79,6 +84,7 @@ export default function GroupDetailScreen() {
   const { data: members } = useGroupMembers(groupId);
   const { data: expenses, isPending } = useExpenses(groupId);
   const { data: settlements } = useSettlements(groupId);
+  const deleteExpense = useDeleteExpense(groupId);
   const deleteSettlement = useDeleteSettlement(groupId);
   // Live-merge other members' changes into the list while this screen is open.
   useGroupRealtime(groupId);
@@ -104,6 +110,10 @@ export default function GroupDetailScreen() {
   );
   const myNet = userId ? (balances[userId] ?? 0) : 0;
   const memberCount = members?.length ?? 0;
+  const memberIds = useMemo(
+    () => (members ?? []).map((m) => m.user_id),
+    [members],
+  );
 
   // One mixed, newest-first transaction list. Settlements only appear under
   // "All" — the owe/owed filters are about splitting expenses.
@@ -144,45 +154,76 @@ export default function GroupDetailScreen() {
       item.paid_by === userId
         ? "You"
         : (nameById[item.paid_by ?? ""] ?? "Someone");
-    // My net impact of this row: payer is credited in full, everyone owes a
-    // share — same equal-split semantics as lib/balances.ts.
-    const share = memberCount > 0 ? item.amount / memberCount : 0;
+    // My net impact of this row: payer is credited in full, participants owe
+    // a share — same partial-split semantics as lib/balances.ts (v1.4).
+    const participants =
+      item.split_among && item.split_among.length > 0
+        ? item.split_among
+        : memberIds;
+    const share =
+      participants.length > 0 ? item.amount / participants.length : 0;
+    const amIIn = userId ? participants.includes(userId) : false;
     const impact =
       item.paid_by === null
         ? 0
         : Math.round(
-            (item.paid_by === userId ? item.amount - share : -share) * 100,
+            ((item.paid_by === userId ? item.amount : 0) -
+              (amIIn ? share : 0)) *
+              100,
           ) / 100;
     const isMine = item.created_by === userId && !item._optimistic;
+    const splitNote =
+      participants.length < memberCount
+        ? ` · split ${participants.length}/${memberCount}`
+        : "";
+
+    const confirmDelete = () => {
+      Alert.alert("Delete expense?", "This can't be undone.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteExpense.mutate(item.id),
+        },
+      ]);
+    };
 
     return (
       <Animated.View entering={FadeIn.duration(200)}>
-        <Card shadow="sm" className="mb-3 px-4">
-          <ListRow
-            avatar={
-              <CircleAvatar
-                icon={meta.icon}
-                bg={meta.tint.bg}
-                fg={meta.tint.fg}
-                size={46}
-              />
-            }
-            title={item.description}
-            subtitle={`${payer} paid ${formatINR(item.amount)}${
-              item._optimistic ? " · Syncing…" : ""
-            }`}
-            right={<AmountCell amount={impact} topLine={date} />}
-            dimmed={item._optimistic}
-            onPress={
-              isMine
-                ? () =>
-                    router.push(
-                      `/groups/${groupId}/add-expense?expenseId=${item.id}`,
-                    )
-                : undefined
-            }
-          />
-        </Card>
+        <SwipeToDelete onDelete={confirmDelete} enabled={isMine}>
+          <Card shadow="sm" className="mb-3 px-4">
+            <ListRow
+              avatar={
+                <CircleAvatar
+                  icon={meta.icon}
+                  bg={meta.tint.bg}
+                  fg={meta.tint.fg}
+                  size={46}
+                />
+              }
+              title={item.description}
+              subtitle={`${payer} paid ${formatMoney(item.amount, group?.currency ?? "INR")}${splitNote}${
+                item._optimistic ? " · Syncing…" : ""
+              }`}
+              right={
+                <AmountCell
+                  amount={impact}
+                  currency={group?.currency ?? "INR"}
+                  topLine={date}
+                />
+              }
+              dimmed={item._optimistic}
+              onPress={
+                isMine
+                  ? () =>
+                      router.push(
+                        `/groups/${groupId}/add-expense?expenseId=${item.id}`,
+                      )
+                  : undefined
+              }
+            />
+          </Card>
+        </SwipeToDelete>
       </Animated.View>
     );
   };
@@ -213,32 +254,34 @@ export default function GroupDetailScreen() {
 
     return (
       <Animated.View entering={FadeIn.duration(200)}>
-        <Card shadow="sm" className="mb-3 px-4">
-          <ListRow
-            avatar={
-              <CircleAvatar
-                icon="handshake-o"
-                bg="#D9EFE7"
-                fg="#2F5D50"
-                size={46}
-              />
-            }
-            title={`${fromName} paid ${toName}`}
-            subtitle={`Payment${item._optimistic ? " · Syncing…" : ""}`}
-            right={
-              <View className="items-end">
-                <Text className="text-xs text-gray-400 dark:text-gray-500">
-                  {date}
-                </Text>
-                <Text className="text-base font-bold text-gray-500 dark:text-gray-400">
-                  {formatINR(item.amount)}
-                </Text>
-              </View>
-            }
-            dimmed={item._optimistic}
-            onPress={canDelete ? confirmDelete : undefined}
-          />
-        </Card>
+        <SwipeToDelete onDelete={confirmDelete} enabled={canDelete}>
+          <Card shadow="sm" className="mb-3 px-4">
+            <ListRow
+              avatar={
+                <CircleAvatar
+                  icon="handshake-o"
+                  bg="#D9EFE7"
+                  fg="#2F5D50"
+                  size={46}
+                />
+              }
+              title={`${fromName} paid ${toName}`}
+              subtitle={`Payment${item._optimistic ? " · Syncing…" : ""}`}
+              right={
+                <View className="items-end">
+                  <Text className="text-xs text-gray-400 dark:text-gray-500">
+                    {date}
+                  </Text>
+                  <Text className="text-base font-bold text-gray-500 dark:text-gray-400">
+                    {formatMoney(item.amount, group?.currency ?? "INR")}
+                  </Text>
+                </View>
+              }
+              dimmed={item._optimistic}
+              onPress={canDelete ? confirmDelete : undefined}
+            />
+          </Card>
+        </SwipeToDelete>
       </Animated.View>
     );
   };
@@ -255,6 +298,7 @@ export default function GroupDetailScreen() {
       <BalanceHero
         label="Your balance in this group"
         amount={myNet}
+        currency={group?.currency ?? "INR"}
         subtitle={
           myNet > 0 ? "you're owed" : myNet < 0 ? "you owe" : "all settled up"
         }
@@ -317,6 +361,7 @@ export default function GroupDetailScreen() {
                       key={m.user_id}
                       name={m.profiles.name}
                       amount={balances[m.user_id] ?? 0}
+                      currency={group?.currency ?? "INR"}
                       isSelf={m.user_id === userId}
                     />
                   ))}

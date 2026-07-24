@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 
+import { formatMoney } from "./currency";
 import { supabase } from "./supabase";
 import type { ActivityEntry } from "./types";
 
@@ -19,7 +20,7 @@ export type ActivityWithActor = ActivityEntry & {
 
 /** Global-feed row also carries which group it belongs to. */
 export type ActivityWithGroup = ActivityWithActor & {
-  groups: { name: string } | null;
+  groups: { name: string; currency: string } | null;
 };
 
 export const activityKeys = {
@@ -57,7 +58,7 @@ export function useAllActivity() {
     queryFn: async (): Promise<ActivityWithGroup[]> => {
       const { data, error } = await supabase
         .from("activity_log")
-        .select("*, profiles(name), groups(name)")
+        .select("*, profiles(name), groups(name, currency)")
         .order("created_at", { ascending: false })
         .limit(GLOBAL_FEED_LIMIT);
       if (error) throw error;
@@ -69,10 +70,12 @@ export function useAllActivity() {
 /** Live-refresh the global feed while the Activity tab is mounted. */
 export function useAllActivityRealtime() {
   const queryClient = useQueryClient();
+  // Unique per mount — same rationale as useGroupRealtime (see expenseSync.ts).
+  const instanceId = useId();
 
   useEffect(() => {
     const channel = supabase
-      .channel("activity:all")
+      .channel(`activity:all:${instanceId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_log" },
@@ -85,7 +88,7 @@ export function useAllActivityRealtime() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, instanceId]);
 }
 
 /**
@@ -96,10 +99,12 @@ export function useAllActivityRealtime() {
  */
 export function useActivityRealtime(groupId: string) {
   const queryClient = useQueryClient();
+  // Unique per mount — same rationale as useGroupRealtime (see expenseSync.ts).
+  const instanceId = useId();
 
   useEffect(() => {
     const channel = supabase
-      .channel(`activity:${groupId}`)
+      .channel(`activity:${groupId}:${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -119,16 +124,20 @@ export function useActivityRealtime(groupId: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId, queryClient]);
+  }, [groupId, queryClient, instanceId]);
 }
 
-/** "Bob added ₹500.00 for Dinner" — one line per feed row. */
-export function describeActivity(entry: ActivityWithActor): string {
+/** "Bob added ₹500.00 for Dinner" — one line per feed row. `currency` is
+ *  the entry's group currency (v1.3); defaults to INR for legacy callers. */
+export function describeActivity(
+  entry: ActivityWithActor,
+  currency = "INR",
+): string {
   const actor = entry.profiles?.name ?? "Someone";
   const what = entry.details.description ?? "an expense";
   const amount =
     entry.details.amount !== undefined
-      ? `₹${entry.details.amount.toFixed(2)}`
+      ? formatMoney(entry.details.amount, currency)
       : "";
 
   switch (entry.action) {

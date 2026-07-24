@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { formatINR } from "@/lib/balances";
+import { formatMoney } from "@/lib/currency";
 
 /**
  * The reference design's list row: avatar disc left, title over gray
@@ -62,10 +62,13 @@ export function ListRow({
  */
 export function AmountCell({
   amount,
+  currency = "INR",
   topLine,
 }: {
   /** Positive = owed to you (green), negative = you owe (rust), 0 = settled. */
   amount: number;
+  /** ISO 4217 code for the group this amount belongs to (v1.3). */
+  currency?: string;
   /** Optional small gray line above the amount (label or date). */
   topLine?: string;
 }) {
@@ -83,7 +86,7 @@ export function AmountCell({
         </Text>
       ) : null}
       <Text className={`text-base font-bold ${color}`}>
-        {amount === 0 ? "settled" : `${sign}${formatINR(amount)}`}
+        {amount === 0 ? "settled" : `${sign}${formatMoney(amount, currency)}`}
       </Text>
     </View>
   );
