@@ -17,11 +17,18 @@ export type ActivityWithActor = ActivityEntry & {
   profiles: { name: string } | null;
 };
 
+/** Global-feed row also carries which group it belongs to. */
+export type ActivityWithGroup = ActivityWithActor & {
+  groups: { name: string } | null;
+};
+
 export const activityKeys = {
   list: (groupId: string) => ["activity", groupId] as const,
+  all: ["activity", "all"] as const,
 };
 
 const FEED_LIMIT = 50;
+const GLOBAL_FEED_LIMIT = 100;
 
 export function useActivity(groupId: string) {
   return useQuery({
@@ -37,6 +44,48 @@ export function useActivity(groupId: string) {
       return data as unknown as ActivityWithActor[];
     },
   });
+}
+
+/**
+ * Global activity across ALL the user's groups (design v3 — the Activity
+ * tab). No group filter: RLS already scopes activity_log to groups the user
+ * belongs to. Joins in the group name so each row shows its context.
+ */
+export function useAllActivity() {
+  return useQuery({
+    queryKey: activityKeys.all,
+    queryFn: async (): Promise<ActivityWithGroup[]> => {
+      const { data, error } = await supabase
+        .from("activity_log")
+        .select("*, profiles(name), groups(name)")
+        .order("created_at", { ascending: false })
+        .limit(GLOBAL_FEED_LIMIT);
+      if (error) throw error;
+      return data as unknown as ActivityWithGroup[];
+    },
+  });
+}
+
+/** Live-refresh the global feed while the Activity tab is mounted. */
+export function useAllActivityRealtime() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("activity:all")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: activityKeys.all });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 }
 
 /**

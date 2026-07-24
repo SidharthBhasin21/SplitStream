@@ -11,11 +11,13 @@ import {
   Text,
   View,
 } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 
 import { BalanceHero } from "@/components/ui/BalanceHero";
+import { Card } from "@/components/ui/Card";
 import { CircleAvatar } from "@/components/ui/CircleAvatar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { IconButton } from "@/components/ui/IconButton";
 import { AmountCell, ListRow } from "@/components/ui/ListRow";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
@@ -154,26 +156,33 @@ export default function GroupDetailScreen() {
     const isMine = item.created_by === userId && !item._optimistic;
 
     return (
-      <Animated.View entering={FadeInDown.duration(250)}>
-        <ListRow
-          avatar={
-            <CircleAvatar icon={meta.icon} bg={meta.tint.bg} fg={meta.tint.fg} />
-          }
-          title={item.description}
-          subtitle={`${payer} paid ${formatINR(item.amount)}${
-            item._optimistic ? " · Syncing…" : ""
-          }`}
-          right={<AmountCell amount={impact} topLine={date} />}
-          dimmed={item._optimistic}
-          onPress={
-            isMine
-              ? () =>
-                  router.push(
-                    `/groups/${groupId}/add-expense?expenseId=${item.id}`,
-                  )
-              : undefined
-          }
-        />
+      <Animated.View entering={FadeIn.duration(200)}>
+        <Card shadow="sm" className="mb-3 px-4">
+          <ListRow
+            avatar={
+              <CircleAvatar
+                icon={meta.icon}
+                bg={meta.tint.bg}
+                fg={meta.tint.fg}
+                size={46}
+              />
+            }
+            title={item.description}
+            subtitle={`${payer} paid ${formatINR(item.amount)}${
+              item._optimistic ? " · Syncing…" : ""
+            }`}
+            right={<AmountCell amount={impact} topLine={date} />}
+            dimmed={item._optimistic}
+            onPress={
+              isMine
+                ? () =>
+                    router.push(
+                      `/groups/${groupId}/add-expense?expenseId=${item.id}`,
+                    )
+                : undefined
+            }
+          />
+        </Card>
       </Animated.View>
     );
   };
@@ -203,26 +212,33 @@ export default function GroupDetailScreen() {
     };
 
     return (
-      <Animated.View entering={FadeInDown.duration(250)}>
-        <ListRow
-          avatar={
-            <CircleAvatar icon="handshake-o" bg="#D9EFE7" fg="#2F5D50" />
-          }
-          title={`${fromName} paid ${toName}`}
-          subtitle={`Payment${item._optimistic ? " · Syncing…" : ""}`}
-          right={
-            <View className="items-end">
-              <Text className="text-xs text-gray-400 dark:text-gray-500">
-                {date}
-              </Text>
-              <Text className="text-base font-bold text-gray-500 dark:text-gray-400">
-                {formatINR(item.amount)}
-              </Text>
-            </View>
-          }
-          dimmed={item._optimistic}
-          onPress={canDelete ? confirmDelete : undefined}
-        />
+      <Animated.View entering={FadeIn.duration(200)}>
+        <Card shadow="sm" className="mb-3 px-4">
+          <ListRow
+            avatar={
+              <CircleAvatar
+                icon="handshake-o"
+                bg="#D9EFE7"
+                fg="#2F5D50"
+                size={46}
+              />
+            }
+            title={`${fromName} paid ${toName}`}
+            subtitle={`Payment${item._optimistic ? " · Syncing…" : ""}`}
+            right={
+              <View className="items-end">
+                <Text className="text-xs text-gray-400 dark:text-gray-500">
+                  {date}
+                </Text>
+                <Text className="text-base font-bold text-gray-500 dark:text-gray-400">
+                  {formatINR(item.amount)}
+                </Text>
+              </View>
+            }
+            dimmed={item._optimistic}
+            onPress={canDelete ? confirmDelete : undefined}
+          />
+        </Card>
       </Animated.View>
     );
   };
@@ -235,8 +251,6 @@ export default function GroupDetailScreen() {
   return (
     <View className="flex-1 bg-paper dark:bg-gray-950">
       <Stack.Screen options={{ headerShown: false }} />
-      {/* Hero card is navy in both themes — force light status bar icons. */}
-      <StatusBar style="light" />
 
       <BalanceHero
         label="Your balance in this group"
@@ -246,27 +260,24 @@ export default function GroupDetailScreen() {
         }
         topBar={
           <View className="flex-row items-center justify-between">
-            <Pressable
-              hitSlop={12}
+            <IconButton
+              icon="chevron-left"
               // Deep links (push-notification taps, direct URLs) can land
               // here with no history — fall back to the groups list.
               onPress={() =>
                 router.canGoBack() ? router.back() : router.replace("/groups")
               }
-            >
-              <FontAwesome name="chevron-left" size={18} color="white" />
-            </Pressable>
+            />
             <Text
-              className="flex-1 px-3 text-center text-lg font-bold text-white"
+              className="flex-1 px-3 text-center text-xl font-bold text-ink dark:text-gray-100"
               numberOfLines={1}
             >
               {group?.name ?? ""}
             </Text>
-            <Link href={`/groups/${groupId}/members`} asChild>
-              <Pressable hitSlop={12}>
-                <FontAwesome name="users" size={18} color="white" />
-              </Pressable>
-            </Link>
+            <IconButton
+              icon="users"
+              onPress={() => router.push(`/groups/${groupId}/members`)}
+            />
           </View>
         }
         actions={[
@@ -290,14 +301,17 @@ export default function GroupDetailScreen() {
         </View>
       ) : (
         <FlatList
-          className="mt-4 px-5"
+          className="mt-5 px-5"
           data={transactions}
           keyExtractor={(t) => t.row.id}
           renderItem={renderTxn}
           ListHeaderComponent={
             <View>
               {members.length > 0 && (expenses?.length ?? 0) > 0 ? (
-                <View className="mb-4 rounded-2xl bg-white px-4 py-3 dark:bg-gray-900">
+                <Card className="mb-5 px-5 py-4">
+                  <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Who owes what
+                  </Text>
                   {members.map((m) => (
                     <MemberBalanceRow
                       key={m.user_id}
@@ -306,11 +320,11 @@ export default function GroupDetailScreen() {
                       isSelf={m.user_id === userId}
                     />
                   ))}
-                </View>
+                </Card>
               ) : null}
 
               <View className="mb-3 flex-row items-center justify-between">
-                <Text className="text-lg font-bold text-ink dark:text-gray-100">
+                <Text className="text-xl font-bold text-ink dark:text-gray-100">
                   Transactions
                 </Text>
                 <View className="flex-row gap-5">
@@ -351,7 +365,7 @@ export default function GroupDetailScreen() {
               </Text>
             )
           }
-          contentContainerClassName="pb-8"
+          contentContainerClassName="pb-40"
         />
       )}
     </View>

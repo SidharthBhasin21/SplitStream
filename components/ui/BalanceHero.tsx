@@ -5,14 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon } from "react-native-svg";
 
 import { formatINR } from "@/lib/balances";
+import { softShadow, softShadowSm } from "./Card";
 
-/** Subtle geometric facet texture over the navy hero card (design-ref). */
+/** Subtle geometric facet texture over the navy hero card. */
 function FacetTexture() {
   return (
     <Svg
       pointerEvents="none"
-      // Plain style, not className: NativeWind doesn't wrap svg components,
-      // so classes would be ignored and the Svg would take layout space.
       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
       width="100%"
       height="100%"
@@ -35,9 +34,10 @@ export interface HeroAction {
 }
 
 /**
- * Dark navy hero (design-ref screen 3): optional in-card top bar, "Total"
- * label, large white balance, then a row of white circular action buttons
- * straddling the card's bottom edge.
+ * Soft-tactile balance hero (design v3): a rounded navy card FLOATING on the
+ * paper background (soft shadow, chunky radius), with an optional header row
+ * rendered on paper above it and circular action buttons straddling its
+ * bottom edge.
  */
 export function BalanceHero({
   label,
@@ -50,21 +50,22 @@ export function BalanceHero({
   amount: number;
   subtitle?: string;
   actions: HeroAction[];
-  /** Rendered inside the card, above the balance (back button, title…). */
+  /** Rendered on the paper background above the floating card. */
   topBar?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const sign = amount < 0 ? "-" : "";
 
   return (
-    <View className="pb-2">
+    <View className="px-4" style={{ paddingTop: insets.top + 8 }}>
+      {topBar ? <View className="mb-3 px-1">{topBar}</View> : null}
+
       <View
-        className="overflow-hidden rounded-b-3xl bg-navy px-5 pb-16"
-        style={{ paddingTop: insets.top + 8 }}
+        className="overflow-hidden rounded-[32px] bg-navy px-6 pb-16 pt-8"
+        style={softShadow}
       >
         <FacetTexture />
-        {topBar}
-        <View className="mt-4 items-center">
+        <View className="items-center">
           <Text className="text-sm text-white/60">{label}</Text>
           <Text className="mt-1 text-5xl font-bold text-white">
             {sign}
@@ -77,11 +78,12 @@ export function BalanceHero({
       </View>
 
       {/* Action circles overlap the card's bottom edge. */}
-      <View className="-mt-10 flex-row justify-evenly px-6">
+      <View className="-mt-9 flex-row justify-evenly px-4">
         {actions.map((action) => (
           <View key={action.label} className="items-center">
             <Pressable
-              className="h-16 w-16 items-center justify-center rounded-full bg-white shadow-md active:bg-gray-100 dark:bg-gray-800 dark:active:bg-gray-700"
+              className="h-16 w-16 items-center justify-center rounded-full bg-white active:bg-gray-100 dark:bg-gray-800 dark:active:bg-gray-700"
+              style={softShadowSm}
               onPress={action.onPress}
             >
               <FontAwesome

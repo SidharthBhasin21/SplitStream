@@ -1,11 +1,14 @@
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Card } from "@/components/ui/Card";
 import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { AmountCell, ListRow } from "@/components/ui/ListRow";
+import { AmountCell } from "@/components/ui/ListRow";
+import { PressableScale } from "@/components/ui/PressableScale";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useAuthStore } from "@/lib/authStore";
 import { computeMyNet, formatINR } from "@/lib/balances";
@@ -30,6 +33,48 @@ function groupInitials(name: string): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function GroupCard({
+  group,
+  net,
+  index,
+  onPress,
+}: {
+  group: GroupListItem;
+  net: number;
+  index: number;
+  onPress: () => void;
+}) {
+  const tint = entityTint(group.id);
+  const memberCount = group.group_members[0]?.count ?? 0;
+  return (
+    // Subtle entrance: a gentle fade with a small stagger — no big slide.
+    <Animated.View entering={FadeIn.delay(index * 35).duration(260)}>
+      <PressableScale className="mb-4" onPress={onPress}>
+        <Card className="flex-row items-center px-4 py-4">
+          <CircleAvatar
+            initials={groupInitials(group.name)}
+            bg={tint.bg}
+            fg={tint.fg}
+            size={52}
+          />
+          <View className="ml-3.5 flex-1 pr-2">
+            <Text
+              className="text-lg font-bold text-ink dark:text-gray-100"
+              numberOfLines={1}
+            >
+              {group.name}
+            </Text>
+            <Text className="mt-0.5 text-sm text-gray-400">
+              {memberCount} {memberCount === 1 ? "member" : "members"}
+            </Text>
+          </View>
+          <AmountCell amount={net} />
+        </Card>
+      </PressableScale>
+    </Animated.View>
+  );
 }
 
 export default function GroupsScreen() {
@@ -69,107 +114,83 @@ export default function GroupsScreen() {
 
   return (
     <View
-      className="flex-1 bg-paper px-5 dark:bg-gray-950"
+      className="flex-1 bg-paper dark:bg-gray-950"
       style={{ paddingTop: insets.top }}
     >
-      {/* Summary header (design-ref screen 1) */}
-      <View className="pt-4">
-        <Text className="text-sm font-medium text-gray-400">Summary</Text>
-        <Text
-          className={`mt-1 text-5xl font-bold ${
-            total < 0
-              ? "text-rust dark:text-rust"
-              : "text-ink dark:text-gray-50"
-          }`}
-        >
-          {total < 0 ? "-" : ""}
-          {formatINR(total)}
-        </Text>
-      </View>
+      <FlatList
+        className="px-5"
+        contentContainerClassName="pb-40"
+        data={visible}
+        keyExtractor={({ group }) => group.id}
+        onRefresh={refetch}
+        refreshing={isRefetching}
+        ListHeaderComponent={
+          <View className="pb-1 pt-3">
+            <Text className="mb-6 text-2xl font-extrabold text-ink dark:text-gray-50">
+              Groups
+            </Text>
 
-      <View className="mt-5">
-        <SegmentedControl
-          options={FILTERS}
-          value={filter}
-          onChange={setFilter}
-        />
-      </View>
+            {/* Summary — total you're owed / owe across all groups */}
+            <Text className="text-base font-medium text-gray-400">
+              Your balance
+            </Text>
+            <Text
+              className={`mt-1 text-[44px] font-extrabold leading-tight ${
+                total < 0
+                  ? "text-rust dark:text-rust"
+                  : "text-ink dark:text-gray-50"
+              }`}
+            >
+              {total < 0 ? "-" : ""}
+              {formatINR(total)}
+            </Text>
 
-      {isPending ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator />
-        </View>
-      ) : error ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="mb-2 text-center text-base text-rust">
-            Couldn't load your groups.
-          </Text>
-          <Pressable onPress={() => refetch()}>
-            <Text className="font-semibold text-ledger">Try again</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          className="mt-2"
-          data={visible}
-          keyExtractor={({ group }) => group.id}
-          onRefresh={refetch}
-          refreshing={isRefetching}
-          renderItem={({ item: { group, net } }) => {
-            const tint = entityTint(group.id);
-            const memberCount = group.group_members[0]?.count ?? 0;
-            return (
-              <ListRow
-                avatar={
-                  <CircleAvatar
-                    initials={groupInitials(group.name)}
-                    bg={tint.bg}
-                    fg={tint.fg}
-                  />
-                }
-                title={group.name}
-                subtitle={`${memberCount} ${memberCount === 1 ? "member" : "members"}`}
-                right={<AmountCell amount={net} />}
-                onPress={() => router.push(`/groups/${group.id}`)}
+            <View className="mb-5 mt-5">
+              <SegmentedControl
+                options={FILTERS}
+                value={filter}
+                onChange={setFilter}
               />
-            );
-          }}
-          ListEmptyComponent={
-            filter === "overall" ? (
-              <EmptyState
-                icon="users"
-                title="No groups yet"
-                message="Create a group for your trip or flat, or join one with an invite code."
-                ctaLabel="Create a group"
-                onCta={() => router.push("/groups/create")}
-              />
-            ) : (
-              <Text className="pt-12 text-center text-sm text-gray-400">
-                {filter === "iowe"
-                  ? "You don't owe anything. Nice."
-                  : "Nobody owes you right now."}
+            </View>
+          </View>
+        }
+        renderItem={({ item: { group, net }, index }) => (
+          <GroupCard
+            group={group}
+            net={net}
+            index={index}
+            onPress={() => router.push(`/groups/${group.id}`)}
+          />
+        )}
+        ListEmptyComponent={
+          isPending ? (
+            <ActivityIndicator className="mt-16" />
+          ) : error ? (
+            <View className="mt-16 items-center px-8">
+              <Text className="mb-2 text-center text-base text-rust">
+                Couldn't load your groups.
               </Text>
-            )
-          }
-        />
-      )}
-
-      <View className="flex-row gap-3 pb-6 pt-2">
-        <Link href="/groups/join" asChild>
-          <Pressable className="flex-1 items-center rounded-full border border-ink/20 bg-transparent py-3.5 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-800">
-            <Text className="text-base font-semibold text-ink dark:text-gray-100">
-              Join with code
+              <Pressable onPress={() => refetch()}>
+                <Text className="font-semibold text-ledger">Try again</Text>
+              </Pressable>
+            </View>
+          ) : filter === "overall" ? (
+            <EmptyState
+              icon="users"
+              title="No groups yet"
+              message="Create a group for your trip or flat, or join one with an invite code."
+              ctaLabel="Create a group"
+              onCta={() => router.push("/groups/create")}
+            />
+          ) : (
+            <Text className="pt-12 text-center text-sm text-gray-400">
+              {filter === "iowe"
+                ? "You don't owe anything. Nice."
+                : "Nobody owes you right now."}
             </Text>
-          </Pressable>
-        </Link>
-        <Link href="/groups/create" asChild>
-          <Pressable className="flex-1 items-center rounded-full bg-ink py-3.5 active:opacity-80 dark:bg-white">
-            <Text className="text-base font-semibold text-white dark:text-ink">
-              Create group
-            </Text>
-          </Pressable>
-        </Link>
-      </View>
+          )
+        }
+      />
     </View>
   );
 }
