@@ -15,7 +15,7 @@ interface ActivityRecord {
   group_id: string;
   actor_id: string | null;
   action: string;
-  details: { description?: string; amount?: number };
+  details: { description?: string; amount?: number; kind?: string };
 }
 
 const supabase = createClient(
@@ -55,9 +55,9 @@ function describe(
     case "member_joined":
       return `${actor} joined the group`;
     case "settled_up":
-      return `${actor} recorded a payment${amount ? ` of ${amount}` : ""}`;
+      return `${actor} recorded a ${details.kind === "loan" ? "loan" : "payment"}${amount ? ` of ${amount}` : ""}`;
     case "settlement_deleted":
-      return `${actor} deleted a payment${amount ? ` of ${amount}` : ""}`;
+      return `${actor} deleted a ${details.kind === "loan" ? "loan" : "payment"}${amount ? ` of ${amount}` : ""}`;
     default:
       return `${actor} updated the group`;
   }
