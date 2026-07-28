@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -29,6 +29,7 @@ async function fetchProfile(userId: string): Promise<Profile> {
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const session = useAuthStore((s) => s.session);
   const userId = session?.user.id;
   const { preference, setPreference } = useThemeStore();
@@ -59,7 +60,14 @@ export default function ProfileScreen() {
       {
         text: "Sign out",
         style: "destructive",
-        onPress: () => supabase.auth.signOut(),
+        // Wipe the React Query cache AFTER sign-out unmounts the app tabs
+        // (audit #27): queries aren't keyed per user, so without this a
+        // second account on the same device briefly sees the first
+        // account's cached groups.
+        onPress: async () => {
+          await supabase.auth.signOut();
+          queryClient.clear();
+        },
       },
     ]);
   };
