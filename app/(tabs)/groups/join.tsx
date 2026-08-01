@@ -20,7 +20,7 @@ type JoinForm = z.infer<typeof joinSchema>;
 export default function JoinGroupScreen() {
   const router = useRouter();
   const joinGroup = useJoinGroup();
-  // Prefilled when arriving via an invite deep link (splitstream://groups/join?code=X).
+  // Prefilled when arriving via an invite deep link (lumenz://groups/join?code=X).
   const { code: linkedCode } = useLocalSearchParams<{ code?: string }>();
   const [serverError, setServerError] = useState<string | null>(null);
 

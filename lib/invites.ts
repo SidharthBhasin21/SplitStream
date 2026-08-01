@@ -8,7 +8,7 @@
  *  the code prefilled when the app is installed via a dev build; the in-app
  *  scanner parses it directly (Expo Go can't open custom schemes). */
 export function inviteUrl(inviteCode: string): string {
-  return `splitstream://groups/join?code=${inviteCode}`;
+  return `lumenz://groups/join?code=${inviteCode}`;
 }
 
 /**
@@ -16,6 +16,9 @@ export function inviteUrl(inviteCode: string): string {
  * any URL with a ?code= param, or a bare 6-character code — so codes shared
  * as plain text (e.g. pasted into a QR generator) still scan fine.
  * Returns null if the content doesn't look like an invite.
+ *
+ * Being scheme-agnostic is what keeps QR codes printed before the
+ * SplitStream→Lumenz rename (splitstream://groups/join?code=…) scannable.
  */
 export function parseInviteCode(scanned: string): string | null {
   const text = scanned.trim();

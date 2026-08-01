@@ -15,7 +15,7 @@ import { supabase } from "./supabase";
  *     it ourselves).
  *  2. Open it in an auth browser session. After consent, Supabase's
  *     /auth/v1/callback redirects to our app's deep link (exp:// in Expo
- *     Go, splitstream:// in builds) with tokens in the URL fragment.
+ *     Go, lumenz:// in builds) with tokens in the URL fragment.
  *  3. Parse the tokens and hand them to setSession — from there the
  *     existing onAuthStateChange listener takes over and the route guard
  *     flips to the app. The phase1 DB trigger creates the profile row,

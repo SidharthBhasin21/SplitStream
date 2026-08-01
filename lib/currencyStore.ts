@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+
+import { persistedStorage } from "./persistedStorage";
 
 /**
  * The user's "home" currency (v1.3) — used only to display the Groups list'
@@ -20,8 +21,8 @@ export const useCurrencyStore = create<CurrencyState>()(
       setHomeCurrency: (code) => set({ homeCurrency: code }),
     }),
     {
-      name: "splitstream-currency",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: "lumenz-currency",
+      storage: persistedStorage("splitstream-currency"),
     },
   ),
 );

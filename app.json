@@ -1,18 +1,18 @@
 {
   "expo": {
     "name": "Lumenz",
-    "slug": "SplitStream",
+    "slug": "Lumenz",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "splitstream",
+    "scheme": "lumenz",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sidharthbhasin.splitstream"
+      "bundleIdentifier": "com.sidharthbhasin.lumenz"
     },
     "android": {
-      "package": "com.sidharthbhasin.splitstream",
+      "package": "com.sidharthbhasin.lumenz",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

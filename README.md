@@ -167,12 +167,12 @@ Open in Expo Go for everyday development. **Push notifications and Google sign-i
 ### 5. Push notifications (optional, needs a dev build)
 
 1. `eas init` then `eas build --profile development --platform android`, install the APK.
-2. Firebase: register an Android app (package `com.sidharthbhasin.splitstream`), add `google-services.json`, upload the FCM V1 service-account key at expo.dev credentials.
+2. Firebase: register an Android app (package `com.sidharthbhasin.lumenz`), add `google-services.json`, upload the FCM V1 service-account key at expo.dev credentials.
 3. Deploy the Edge Function: `supabase functions deploy notify-activity --no-verify-jwt`, set a `WEBHOOK_SECRET`, and run [`supabase/phase8.sql`](supabase/) (the trigger that calls it — replace the secret placeholder first).
 
 ### 6. Google sign-in (optional)
 
-Create a **Web** OAuth client in Google Cloud (redirect URI = `<project>.supabase.co/auth/v1/callback`), enable the Google provider in Supabase with the client id/secret, and allow-list `splitstream://**` and `exp://**` under Auth → URL Configuration.
+Create a **Web** OAuth client in Google Cloud (redirect URI = `<project>.supabase.co/auth/v1/callback`), enable the Google provider in Supabase with the client id/secret, and allow-list `lumenz://**` and `exp://**` under Auth → URL Configuration.
 
 ---
 
