@@ -150,8 +150,8 @@ export function describeActivity(
     case "member_joined":
       return `${actor} joined the group`;
     case "settled_up":
-      return `${actor} recorded a payment${amount ? ` of ${amount}` : ""}`;
+      return `${actor} recorded a ${entry.details.kind === "loan" ? "loan" : "payment"}${amount ? ` of ${amount}` : ""}`;
     case "settlement_deleted":
-      return `${actor} deleted a payment${amount ? ` of ${amount}` : ""}`;
+      return `${actor} deleted a ${entry.details.kind === "loan" ? "loan" : "payment"}${amount ? ` of ${amount}` : ""}`;
   }
 }

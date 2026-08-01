@@ -9,7 +9,7 @@ import { useEffect, useId } from "react";
 import { useAuthStore } from "./authStore";
 import { supabase } from "./supabase";
 import { useToastStore } from "./toastStore";
-import type { Expense, Settlement } from "./types";
+import type { Expense, Settlement, SettlementKind } from "./types";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════
@@ -494,6 +494,8 @@ export interface AddSettlementInput {
   from_user: string;
   to_user: string;
   amount: number;
+  /** 'payment' clears debt (settle up); 'loan' creates it (cash handover). */
+  kind: SettlementKind;
 }
 
 export function useAddSettlement(groupId: string) {
@@ -526,6 +528,7 @@ export function useAddSettlement(groupId: string) {
         from_user: input.from_user,
         to_user: input.to_user,
         amount: input.amount,
+        kind: input.kind,
         created_by: userId ?? null,
         created_at: new Date().toISOString(),
         _optimistic: true,

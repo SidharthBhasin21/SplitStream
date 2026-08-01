@@ -117,6 +117,7 @@ export default function SettleScreen() {
       from_user: effectiveDirection === "i_paid" ? userId : selected,
       to_user: effectiveDirection === "i_paid" ? selected : userId,
       amount: Math.round(value * 100) / 100,
+      kind: "payment",
     });
     router.back();
   };

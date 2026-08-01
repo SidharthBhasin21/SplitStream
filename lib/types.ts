@@ -48,6 +48,10 @@ export interface Expense {
   updated_at: string;
 }
 
+/** v1.5 — same money movement, different meaning: a settle-up 'payment'
+ *  clears debt; a 'loan' is cash handed over that CREATES debt. */
+export type SettlementKind = "payment" | "loan";
+
 /**
  * v1.2 — a recorded payment (cash/UPI outside the app): from_user paid
  * to_user. Partial amounts allowed. Immutable — delete + re-record, no edit.
@@ -58,6 +62,7 @@ export interface Settlement {
   from_user: string;
   to_user: string;
   amount: number;
+  kind: SettlementKind;
   created_by: string | null;
   created_at: string;
 }
@@ -76,6 +81,7 @@ export interface ActivityEntry {
   group_id: string;
   actor_id: string | null;
   action: ActivityAction;
-  details: { description?: string; amount?: number };
+  /** `kind` (v1.5) is only present on settlement rows logged after phase12. */
+  details: { description?: string; amount?: number; kind?: SettlementKind };
   created_at: string;
 }

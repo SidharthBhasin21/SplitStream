@@ -89,6 +89,7 @@ export default function LoanScreen() {
       from_user: direction === "i_lent" ? userId : selected,
       to_user: direction === "i_lent" ? selected : userId,
       amount: Math.round(value * 100) / 100,
+      kind: "loan",
     });
     router.back();
   };

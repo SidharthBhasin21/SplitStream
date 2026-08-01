@@ -240,9 +240,12 @@ export default function GroupDetailScreen() {
     const toName =
       item.to_user === userId ? "you" : (nameById[item.to_user] ?? "someone");
     const canDelete = item.created_by === userId && !item._optimistic;
+    // Same money movement, opposite meaning: a payment clears debt, a loan
+    // creates it — the row must say which (v1.5).
+    const isLoan = item.kind === "loan";
 
     const confirmDelete = () => {
-      Alert.alert("Delete this payment?", "Balances will shift back.", [
+      Alert.alert(`Delete this ${isLoan ? "loan" : "payment"}?`, "Balances will shift back.", [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
@@ -259,14 +262,14 @@ export default function GroupDetailScreen() {
             <ListRow
               avatar={
                 <CircleAvatar
-                  icon="handshake-o"
-                  bg="#D9EFE7"
-                  fg="#2F5D50"
+                  icon={isLoan ? "exchange" : "handshake-o"}
+                  bg={isLoan ? "#D8E9FC" : "#D9EFE7"}
+                  fg={isLoan ? "#3B82C4" : "#2F5D50"}
                   size={46}
                 />
               }
-              title={`${fromName} paid ${toName}`}
-              subtitle={`Payment${item._optimistic ? " · Syncing…" : ""}`}
+              title={`${fromName} ${isLoan ? "lent" : "paid"} ${toName}`}
+              subtitle={`${isLoan ? "Loan" : "Payment"}${item._optimistic ? " · Syncing…" : ""}`}
               right={
                 <View className="items-end">
                   <Text className="text-xs text-gray-400 dark:text-gray-500">
