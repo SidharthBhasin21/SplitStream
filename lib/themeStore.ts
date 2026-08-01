@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+
+import { persistedStorage } from "./persistedStorage";
 
 /**
  * Dark mode (v1.1). tailwind.config.js uses darkMode: "class", so NativeWind
@@ -24,8 +25,8 @@ export const useThemeStore = create<ThemeState>()(
       setPreference: (preference) => set({ preference }),
     }),
     {
-      name: "splitstream-theme",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: "lumenz-theme",
+      storage: persistedStorage("splitstream-theme"),
     },
   ),
 );
