@@ -1,4 +1,4 @@
-# SplitStream
+# Lumenz
 
 A real-time collaborative expense-splitting app for small groups (roommates, trips, friends). Log a shared expense on one phone and everyone else's balances update **live** — no refresh. Two people editing the same expense at once resolve without data loss, and every change lands on the sender's screen instantly, before the server confirms it.
 

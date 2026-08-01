@@ -59,7 +59,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text className="mb-1 text-center text-3xl font-bold text-ledger">
-          SplitStream
+          Lumenz
         </Text>
         <Text className="mb-10 text-center text-base text-gray-500 dark:text-gray-400">
           Split expenses, in real time

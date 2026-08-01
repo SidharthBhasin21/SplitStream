@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
   );
   const messages = tokens.map(({ token }) => ({
     to: token,
-    title: group?.name ?? "SplitStream",
+    title: group?.name ?? "Lumenz",
     body,
     data: { groupId: record.group_id },
   }));

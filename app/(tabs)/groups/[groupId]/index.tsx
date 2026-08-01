@@ -140,7 +140,7 @@ export default function GroupDetailScreen() {
   const shareInvite = () => {
     if (!group) return;
     Share.share({
-      message: `Join "${group.name}" on SplitStream with invite code: ${group.invite_code}`,
+      message: `Join "${group.name}" on Lumenz with invite code: ${group.invite_code}`,
     });
   };
 
@@ -403,7 +403,7 @@ export default function GroupDetailScreen() {
               <EmptyState
                 icon="money"
                 title="No expenses yet"
-                message="Add the first expense and SplitStream will keep the balances straight."
+                message="Add the first expense and Lumenz will keep the balances straight."
                 ctaLabel="Add expense"
                 onCta={() => router.push(`/groups/${groupId}/add-expense`)}
               />

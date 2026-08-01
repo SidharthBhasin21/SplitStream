@@ -13,7 +13,7 @@ import type { Expense, Settlement, SettlementKind } from "./types";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════
- *  expenseSync — SplitStream's optimistic-update & conflict-resolution core
+ *  expenseSync — Lumenz's optimistic-update & conflict-resolution core
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Everything about how expense state syncs lives in this one module, by

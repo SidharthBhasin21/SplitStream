@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 /**
  * Live exchange rates for the Groups list' cross-group "Your balance"
- * total (v1.3). This is the ONLY place SplitStream converts between
+ * total (v1.3). This is the ONLY place Lumenz converts between
  * currencies — per-group balances and settle-up always stay in that
  * group's own currency (see lib/currency.ts), so a rate hiccup here can
  * never corrupt what anyone actually owes.

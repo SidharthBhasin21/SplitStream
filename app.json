@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SplitStream",
+    "name": "Lumenz",
     "slug": "SplitStream",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -37,7 +37,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SplitStream uses the camera only to scan group invite QR codes."
+          "cameraPermission": "Lumenz uses the camera only to scan group invite QR codes."
         }
       ],
       [

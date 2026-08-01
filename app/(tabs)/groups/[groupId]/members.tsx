@@ -67,7 +67,7 @@ export default function MembersScreen() {
   const shareInvite = () => {
     if (!group) return;
     Share.share({
-      message: `Join "${group.name}" on SplitStream with invite code: ${group.invite_code}`,
+      message: `Join "${group.name}" on Lumenz with invite code: ${group.invite_code}`,
     });
   };
 

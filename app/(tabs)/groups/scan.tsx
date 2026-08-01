@@ -54,7 +54,7 @@ export default function ScanScreen() {
           Camera access needed
         </Text>
         <Text className="mb-6 text-center text-base text-gray-400">
-          SplitStream uses the camera only to scan group invite QR codes.
+          Lumenz uses the camera only to scan group invite QR codes.
         </Text>
         <Pressable
           className="items-center rounded-full bg-ink px-8 py-4 active:opacity-80 dark:bg-white"
@@ -100,7 +100,7 @@ export default function ScanScreen() {
           {joinGroup.isPending
             ? "Joining group…"
             : badScan
-              ? "That QR isn't a SplitStream invite — try another"
+              ? "That QR isn't a Lumenz invite — try another"
               : "Point the camera at a group's invite QR"}
         </Text>
         {/* Primary flow is scanning; typing the code is the fallback. */}
