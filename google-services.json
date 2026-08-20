@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:889498982990:android:455a0e81d2f6ce94e4c11f",
+        "mobilesdk_app_id": "1:889498982990:android:894d57abf690c9e9e4c11f",
         "android_client_info": {
-          "package_name": "com.sidharthbhasin.splitstream"
+          "package_name": "com.sidharthbhasin.lumenz"
         }
       },
       "oauth_client": [],

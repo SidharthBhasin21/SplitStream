@@ -48,25 +48,57 @@ class LargeSecureStore {
     const stored = await AsyncStorage.getItem(key);
     if (!stored) return null;
 
-    const keyHex = await SecureStore.getItemAsync(key);
+    let keyHex: string | null = null;
+    try {
+      keyHex = await SecureStore.getItemAsync(key);
+    } catch {
+      keyHex = null; // treated as "unencrypted" below
+    }
+
     if (!keyHex) {
-      // Migration: a value with no SecureStore key is a PLAINTEXT session
-      // persisted before v1.5. Adopt it (re-store encrypted) instead of
-      // dropping it, so existing users aren't logged out by this change.
-      await this.setItem(key, stored);
+      // No key for this value means one of two things, and both are handled
+      // the same way: either a PLAINTEXT session persisted before v1.5, or
+      // SecureStore is unavailable so setItem already fell back to
+      // plaintext. Adopt the value (re-encrypting if we now can) rather than
+      // dropping it, so nobody gets logged out.
+      try {
+        await this.setItem(key, stored);
+      } catch {
+        // Keep the value as-is; returning it still restores the session.
+      }
       return stored;
     }
-    return this.decrypt(keyHex, stored);
+
+    try {
+      return this.decrypt(keyHex, stored);
+    } catch {
+      // Corrupt or mismatched ciphertext — treat as no session rather than
+      // handing supabase-js garbage. Worst case the user logs in again.
+      return null;
+    }
   }
 
   async setItem(key: string, value: string): Promise<void> {
-    const encrypted = await this.encrypt(key, value);
-    await AsyncStorage.setItem(key, encrypted);
+    try {
+      const encrypted = await this.encrypt(key, value);
+      await AsyncStorage.setItem(key, encrypted);
+    } catch {
+      // SecureStore/Crypto unavailable — a runtime missing those native
+      // modules, or an Android device with a damaged keystore. Degrade to
+      // the pre-v1.5 behaviour (plain AsyncStorage) instead of taking the
+      // whole app down at boot: an auth-storage adapter must never be able
+      // to prevent the app from starting.
+      console.warn(
+        "[auth] Secure storage unavailable — persisting session unencrypted.",
+      );
+      await SecureStore.deleteItemAsync(key).catch(() => {});
+      await AsyncStorage.setItem(key, value);
+    }
   }
 
   async removeItem(key: string): Promise<void> {
     await AsyncStorage.removeItem(key);
-    await SecureStore.deleteItemAsync(key);
+    await SecureStore.deleteItemAsync(key).catch(() => {});
   }
 }
 
