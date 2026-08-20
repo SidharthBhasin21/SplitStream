@@ -1,4 +1,4 @@
-import Constants, { ExecutionEnvironment } from "expo-constants";
+import Constants, { AppOwnership, ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
@@ -25,8 +25,17 @@ import { supabase } from "./supabase";
 
 // Environments where push can never work: Expo Go (removed in SDK 53) and
 // web (out of scope). Skip everything, including loading the module.
+//
+// Two independent signals for "are we in Expo Go" on purpose. Getting this
+// wrong doesn't degrade the feature — it dynamically imports a module that
+// errors on load in Expo Go, which can take the app down at startup. And the
+// failure only shows on a PHYSICAL device: emulators bail out earlier on
+// `!Device.isDevice`, so a single-signal check tests clean and still breaks
+// on real hardware. appOwnership is deprecated but still populated, and a
+// deprecated-but-correct second opinion is worth more than the tidier check.
 const pushUnavailable =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  Constants.appOwnership === AppOwnership.Expo ||
   Platform.OS === "web";
 
 function easProjectId(): string | undefined {

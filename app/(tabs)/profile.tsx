@@ -1,14 +1,23 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CircleAvatar, entityTint } from "@/components/ui/CircleAvatar";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { useDeleteAccount } from "@/lib/account";
 import { useAuthStore } from "@/lib/authStore";
 import { CURRENCIES } from "@/lib/currency";
 import { useCurrencyStore } from "@/lib/currencyStore";
 import { supabase } from "@/lib/supabase";
 import { useThemeStore, type ThemePreference } from "@/lib/themeStore";
+import { useToastStore } from "@/lib/toastStore";
 import type { Profile } from "@/lib/types";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -34,6 +43,7 @@ export default function ProfileScreen() {
   const userId = session?.user.id;
   const { preference, setPreference } = useThemeStore();
   const { homeCurrency, setHomeCurrency } = useCurrencyStore();
+  const deleteAccount = useDeleteAccount();
 
   const {
     data: profile,
@@ -72,10 +82,62 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // Point of no return, split out so the first alert stays purely
+  // informational — the user has to choose destruction twice.
+  const reallyDeleteAccount = () => {
+    Alert.alert(
+      "This can't be undone",
+      "You won't be able to sign in to Lumenz again with this account.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete permanently",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAccount.mutateAsync();
+              // Session is already cleared, which flips the route guard to
+              // the auth stack; drop the cache so nothing of theirs lingers.
+              queryClient.clear();
+            } catch (e) {
+              useToastStore
+                .getState()
+                .show(
+                  e instanceof Error
+                    ? e.message
+                    : "Couldn't delete your account. Try again.",
+                );
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // Two-step on purpose: deletion is irreversible. The first alert is honest
+  // about what SURVIVES — hiding that would be the unpleasant surprise.
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      "Delete your account?",
+      "Your sign-in, name and notifications are permanently removed.\n\nExpenses and payments you recorded stay in your groups, shown as “Deleted user” — removing them would change what everyone else owes.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: reallyDeleteAccount,
+        },
+      ],
+    );
+  };
+
   return (
-    <View
+    // Scrollable: the currency picker alone is several rows tall, and the
+    // account-deletion control below must stay reachable on small screens
+    // (Play requires it to be discoverable in-app).
+    <ScrollView
       className="flex-1 bg-paper px-5 dark:bg-gray-950"
-      style={{ paddingTop: insets.top + 24 }}
+      contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: 160 }}
     >
       {/* Centered identity block (design-ref 04) */}
       <View className="items-center">
@@ -167,6 +229,23 @@ export default function ProfileScreen() {
       >
         <Text className="text-base font-semibold text-rust">Sign out</Text>
       </Pressable>
-    </View>
+
+      <Pressable
+        className="mt-4 items-center py-3 active:opacity-60"
+        onPress={confirmDeleteAccount}
+        disabled={deleteAccount.isPending}
+      >
+        {deleteAccount.isPending ? (
+          <ActivityIndicator color="#B54A3A" />
+        ) : (
+          <Text className="text-sm font-semibold text-rust">
+            Delete account
+          </Text>
+        )}
+      </Pressable>
+      <Text className="mt-1 text-center text-xs text-gray-400">
+        Permanently removes your sign-in. Shared expenses stay in your groups.
+      </Text>
+    </ScrollView>
   );
 }

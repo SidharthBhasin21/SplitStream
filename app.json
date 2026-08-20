@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Lumenz",
-    "slug": "Lumenz",
+    "slug": "SplitStream",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -22,8 +22,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -37,7 +36,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Lumenz uses the camera only to scan group invite QR codes."
+          "cameraPermission": "Lumenz uses the camera only to scan group invite QR codes.",
+          "recordAudioAndroid": false
         }
       ],
       [
