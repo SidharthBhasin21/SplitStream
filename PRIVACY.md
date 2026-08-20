@@ -27,9 +27,11 @@ Lumenz is built on:
 
 ## Data retention and account deletion
 
-You can permanently delete your account from **Profile → Delete account** in the app. This immediately and permanently removes your sign-in credentials (email/password or Google link) and your display name.
+**In the app**: go to **Profile → Delete account**. This immediately and permanently removes your sign-in credentials (email/password or Google link) and your display name.
 
-Expenses and settlements you recorded are **not** deleted — they remain in your groups' records (shown as "Deleted user") so that other members' balances stay accurate. This is the only data that is retained after deletion, and it can no longer be linked to your email, login, or name.
+**Without the app**: if you no longer have the app installed, email **sid21bhasin@gmail.com** from the address registered on your account and request deletion. We'll process it within 7 days and confirm by email once it's done.
+
+Either way, expenses and settlements you recorded are **not** deleted — they remain in your groups' records (shown as "Deleted user") so that other members' balances stay accurate. This is the only data retained after deletion, and it can no longer be linked to your email, login, or name.
 
 ## Children's privacy
 
