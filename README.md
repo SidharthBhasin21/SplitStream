@@ -4,6 +4,8 @@ A real-time collaborative expense-splitting app for small groups (roommates, tri
 
 Built with Expo (React Native) + Supabase.
 
+[Privacy policy](PRIVACY.md) · [hosted copy](https://gist.github.com/SidharthBhasin21/df6b5e64993a1b58b4ec25d563a6a99d)
+
 > **Why this project exists:** it's a focused demonstration of three things that are hard to get right — **WebSocket real-time sync, optimistic UI with rollback, and concurrency conflict resolution** — rather than a wide feature surface. The interesting code is deliberately concentrated in a few well-commented files (see [The engineering story](#the-engineering-story)).
 
 ---
