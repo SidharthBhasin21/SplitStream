@@ -1,0 +1,20 @@
+name: Supabase keepalive
+
+# Supabase free-tier projects auto-pause after 7 days with no API activity.
+# This pings the REST endpoint every 3 days to reset that clock. The anon
+# key is a public/publishable key (same one bundled into the app), so it's
+# safe to inline here — nothing secret is exposed.
+on:
+  schedule:
+    - cron: "0 12 */3 * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" \
+            "https://iktxymjxpmpmhzexahlp.supabase.co/rest/v1/" \
+            -H "apikey: sb_publishable_1LSJ4I_QLSLJ63matL2Dfw_q_vrF91D"
